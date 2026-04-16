@@ -15,8 +15,14 @@ CREATE TABLE users (
   nama_sekolah TEXT,
   no_hp TEXT,
   nip TEXT UNIQUE NOT NULL,
+  nama_kepsek TEXT,
+  mapel JSONB,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW())
 );
+
+-- JIKA TABEL USERS SUDAH ADA SEBELUMNYA, JALANKAN PERINTAH ALTER INI:
+-- ALTER TABLE users ADD COLUMN IF NOT EXISTS nama_kepsek TEXT;
+-- ALTER TABLE users ADD COLUMN IF NOT EXISTS mapel JSONB;
 
 -- 2. Buat tabel app_config (hanya satu baris)
 CREATE TABLE app_config (

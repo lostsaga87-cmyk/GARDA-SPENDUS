@@ -6,11 +6,12 @@ import { HelpModal, IdeaModal } from './Modals';
 import { RppData } from '../types';
 import { makeApiCall } from '../lib/api';
 import { AppConfig, User, logActivity, getUserHistory, updatePassword } from '../lib/store';
-import { User as UserIcon, Clock, History, Key, X, Check } from 'lucide-react';
+import { User as UserIcon, Clock, History, Key, X, Check, Menu, HelpCircle, LogOut } from 'lucide-react';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 
 export default function MainApp({ onLogout, appConfig, currentUser }: { onLogout: () => void, appConfig: AppConfig, currentUser: User }) {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [showHelp, setShowHelp] = useState(false);
   const [showIdeaModal, setShowIdeaModal] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
@@ -35,9 +36,9 @@ export default function MainApp({ onLogout, appConfig, currentUser }: { onLogout
   }, [showProfile, currentUser.id]);
 
   const [rppData, setRppData] = useState<RppData>({
-    namaSekolah: currentUser.namaSekolah || '', jenjang: 'SMP', mapel: '', tahunPelajaran: '', kelasSemester: '', fase: '',
+    namaSekolah: currentUser.namaSekolah || '', jenjang: 'SMP', mapel: currentUser.mapel?.join(', ') || '', tahunPelajaran: '', kelasSemester: '', fase: '',
     jumlahPertemuan: 1, durasiPertemuan: '1 JP x 40 Menit', alokasiWaktu: '',
-    lingkungan: '', namaGuru: currentUser.username || '', namaKepsek: '', kota: '',
+    lingkungan: '', namaGuru: currentUser.username || '', namaKepsek: currentUser.namaKepsek || '', kota: '',
     kktpTercapaiMin: 80,
     karakteristik: 'Sebagian siswa cenderung pasif, 2 siswa berkebutuhan khusus, ada yang belum lancar membaca/berhitung.', 
     minat: 'Sebagian siswa minat belajar rendah, lebih suka praktik di laboratorium dan kerja kelompok.', 
@@ -87,19 +88,46 @@ export default function MainApp({ onLogout, appConfig, currentUser }: { onLogout
   const handleGenerateTP = async () => {
     if (!captureAndValidateData()) return;
     
-    if (!appConfig.apiKey) {
+    const validKeys = appConfig.apiKeys.filter(k => k && k.trim() !== '');
+    if (validKeys.length === 0) {
       alert("Kunci API belum dikonfigurasi oleh Admin. Silakan hubungi Admin.");
       return;
     }
 
     setShowOutput(true);
     
-    const prompt = `Anda adalah seorang ahli kurikulum pendidikan Indonesia. Analisis kalimat Capaian Pembelajaran (CP) berikut: "${rppData.cp_full_text}". Identifikasi setiap materi pokok yang utuh dan berbeda di dalamnya. Untuk setiap materi pokok, buatkan 3 Tujuan Pembelajaran (TP) sesuai level kognitif: Memahami, Mengaplikasi, dan Merefleksi. Berikan jawaban dalam format JSON array. Setiap objek dalam array mewakili satu materi pokok dan memiliki kunci "topic" (string) dan "tps" (array dari 3 objek TP). Setiap objek TP harus memiliki kunci "level" dan "text".`;
-    const schema = { type: "ARRAY", items: { type: "OBJECT", properties: { "topic": { "type": "STRING" }, "tps": { type: "ARRAY", items: { type: "OBJECT", properties: { "level": { "type": "STRING" }, "text": { "type": "STRING" } }, required: ["level", "text"] } } }, required: ["topic", "tps"] } };
+    const prompt = `Anda adalah seorang ahli kurikulum pendidikan Indonesia. Analisis kalimat Capaian Pembelajaran (CP) berikut: "${rppData.cp_full_text}". Identifikasi setiap materi pokok yang utuh dan berbeda di dalamnya. Untuk setiap materi pokok, buatkan 3 Tujuan Pembelajaran (TP) sesuai level kognitif: Memahami, Mengaplikasi, dan Merefleksi. Berikan jawaban dalam format JSON. JSON harus memiliki satu kunci utama "materi" yang berisi array. Setiap objek dalam array mewakili satu materi pokok dan memiliki kunci "topic" (string) dan "tps" (array dari 3 objek TP). Setiap objek TP harus memiliki kunci "level" dan "text".`;
+    const schema = { 
+      type: "OBJECT", 
+      properties: { 
+        materi: {
+          type: "ARRAY", 
+          items: { 
+            type: "OBJECT", 
+            properties: { 
+              topic: { type: "STRING" }, 
+              tps: { 
+                type: "ARRAY", 
+                items: { 
+                  type: "OBJECT", 
+                  properties: { 
+                    level: { type: "STRING" }, 
+                    text: { type: "STRING" } 
+                  }, 
+                  required: ["level", "text"] 
+                } 
+              } 
+            }, 
+            required: ["topic", "tps"] 
+          }
+        }
+      },
+      required: ["materi"]
+    };
     
     try {
-      const aiResult = await makeApiCall(prompt, appConfig.apiKey, schema);
-      setRppData(prev => ({ ...prev, tujuanPembelajaran: aiResult }));
+      const aiResult = await makeApiCall(prompt, appConfig.apiKeys, schema);
+      setRppData(prev => ({ ...prev, tujuanPembelajaran: aiResult.materi || [] }));
       
       // Log generate activity
       await logActivity(currentUser.id, 'generate', `Generate RPP: ${rppData.mapel} - Kelas ${rppData.kelasSemester}`);
@@ -144,64 +172,104 @@ export default function MainApp({ onLogout, appConfig, currentUser }: { onLogout
   };
 
   return (
-    <div className="min-h-screen bg-[#f0f4f8] font-sans">
-      <Header 
-        appName={appConfig.appName}
-        onOpenHelp={() => setShowHelp(true)}
-        onLogout={onLogout}
-      />
-
-      <main className="container mx-auto p-4 md:p-6 pb-20">
-        {/* User Dashboard Header */}
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-800">{getGreeting()}, {currentUser.username}!</h2>
-            <p className="text-gray-600 flex items-center gap-2 mt-1">
-              <span className="font-medium">{currentUser.namaSekolah || 'Sekolah Belum Diatur'}</span> | NIP: {currentUser.nip}
-            </p>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="text-right hidden sm:block">
-              <p className="text-sm font-medium text-gray-800 flex items-center justify-end gap-1">
-                <Clock className="w-4 h-4 text-blue-500" /> {format(currentTime, 'HH:mm:ss')}
-              </p>
-              <p className="text-xs text-gray-500">{format(currentTime, 'EEEE, dd MMMM yyyy', { locale: id })}</p>
+    <div className="min-h-screen bg-[#f0f4f8] font-sans flex overflow-hidden">
+      {/* Sidebar */}
+      <aside className={`bg-white shadow-xl z-40 transition-all duration-300 flex flex-col h-screen shrink-0 ${isSidebarOpen ? 'w-64' : 'w-20'}`}>
+        <div className="p-4 flex items-center justify-between border-b border-gray-100 h-16">
+          {isSidebarOpen && (
+            <div className="flex items-center gap-2 overflow-hidden">
+              <img src={appConfig.appLogo} alt="Logo" className="h-8 w-8 object-contain shrink-0" />
+              <span className="font-bold text-blue-800 truncate">{appConfig.appName}</span>
             </div>
-            <button 
-              onClick={() => setShowProfile(true)}
-              className="p-3 bg-blue-50 text-blue-600 rounded-full hover:bg-blue-100 transition-colors"
-              title="Profil & Riwayat"
-            >
-              <UserIcon className="w-6 h-6" />
+          )}
+          <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 mx-auto shrink-0">
+            <Menu className="w-6 h-6" />
+          </button>
+        </div>
+        
+        {/* Time Section - Moved below logo */}
+        <div className={`px-3 py-3 border-b border-gray-100 flex items-center gap-3 text-gray-600 ${!isSidebarOpen && 'justify-center'}`} title={format(currentTime, 'HH:mm:ss')}>
+          <Clock className="w-5 h-5 shrink-0 text-blue-500" />
+          {isSidebarOpen && (
+            <div className="overflow-hidden">
+              <p className="text-sm font-medium truncate">{format(currentTime, 'HH:mm:ss')}</p>
+              <p className="text-xs truncate">{format(currentTime, 'dd MMM yyyy', { locale: id })}</p>
+            </div>
+          )}
+        </div>
+        
+        <div className="flex-1 overflow-y-auto py-4 flex flex-col gap-2 px-3">
+          {/* Profile Section */}
+          <div className={`p-3 rounded-xl bg-blue-50 border border-blue-100 flex flex-col ${isSidebarOpen ? 'items-start' : 'items-center'} mb-4`}>
+            <button onClick={() => setShowProfile(true)} className="flex items-center gap-3 w-full text-left" title="Profil & Riwayat">
+              <div className="p-2 bg-blue-600 text-white rounded-full shrink-0">
+                <UserIcon className="w-5 h-5" />
+              </div>
+              {isSidebarOpen && (
+                <div className="overflow-hidden">
+                  <p className="text-sm font-bold text-gray-800 truncate">{getGreeting()},</p>
+                  <p className="text-sm font-bold text-gray-800 truncate">{currentUser.username}!</p>
+                  <p className="text-xs text-gray-500 truncate mt-1">{currentUser.namaSekolah || 'Sekolah Belum Diatur'}</p>
+                </div>
+              )}
+            </button>
+          </div>
+
+          <div className="mt-auto flex flex-col gap-2 pt-4 border-t border-gray-100">
+            <button onClick={() => setShowHelp(true)} className={`flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 text-gray-700 transition-colors ${!isSidebarOpen && 'justify-center'}`} title="Bantuan">
+              <HelpCircle className="w-5 h-5 shrink-0" />
+              {isSidebarOpen && <span className="font-medium">Bantuan</span>}
+            </button>
+            <button onClick={onLogout} className={`flex items-center gap-3 p-3 rounded-lg hover:bg-red-50 text-red-600 transition-colors ${!isSidebarOpen && 'justify-center'}`} title="Keluar">
+              <LogOut className="w-5 h-5 shrink-0" />
+              {isSidebarOpen && <span className="font-medium">Keluar</span>}
             </button>
           </div>
         </div>
+      </aside>
 
-        <FormSection 
-          rppData={rppData} 
-          setRppData={setRppData} 
-          validationError={validationError}
-          onGenerateTP={handleGenerateTP}
-          appConfig={appConfig}
-          onShowIdeaModal={() => {
-            if (captureAndValidateData()) {
-              if (!appConfig.apiKey) {
-                alert("Kunci API belum dikonfigurasi oleh Admin.");
-              } else {
-                setShowIdeaModal(true);
-              }
-            }
-          }}
-        />
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col h-screen overflow-hidden">
+        {/* Marquee Header */}
+        <div className="bg-slate-800 text-white py-2 relative overflow-hidden shrink-0 h-10 flex items-center">
+          <div className="whitespace-nowrap animate-marquee font-bold tracking-widest text-sm">
+            {appConfig.appName}
+          </div>
+        </div>
 
-        {showOutput && rppData.tujuanPembelajaran.length > 0 && (
-          <OutputSection 
-            rppData={rppData} 
-            setRppData={setRppData}
-            apiKey={appConfig.apiKey}
-          />
-        )}
-      </main>
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-20">
+          {!showOutput ? (
+            <div className="w-full">
+              <FormSection 
+                rppData={rppData} 
+                setRppData={setRppData} 
+                validationError={validationError}
+                onGenerateTP={handleGenerateTP}
+                appConfig={appConfig}
+                onShowIdeaModal={() => {
+                  if (captureAndValidateData()) {
+                    const validKeys = appConfig.apiKeys.filter(k => k && k.trim() !== '');
+                    if (validKeys.length === 0) {
+                      alert("Kunci API belum dikonfigurasi oleh Admin.");
+                    } else {
+                      setShowIdeaModal(true);
+                    }
+                  }
+                }}
+              />
+            </div>
+          ) : (
+            <div className="w-full">
+              <OutputSection 
+                rppData={rppData} 
+                setRppData={setRppData}
+                apiKeys={appConfig.apiKeys}
+                onBack={() => setShowOutput(false)}
+              />
+            </div>
+          )}
+        </main>
+      </div>
 
       {/* Profile & History Modal */}
       {showProfile && (
@@ -291,7 +359,7 @@ export default function MainApp({ onLogout, appConfig, currentUser }: { onLogout
       )}
 
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
-      {showIdeaModal && <IdeaModal onClose={() => setShowIdeaModal(false)} rppData={rppData} apiKey={appConfig.apiKey} />}
+      {showIdeaModal && <IdeaModal onClose={() => setShowIdeaModal(false)} rppData={rppData} apiKeys={appConfig.apiKeys} />}
     </div>
   );
 }

@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
-import { Printer, FileText, Edit, Save } from 'lucide-react';
+import { Printer, FileText, Edit, Save, ArrowLeft, Download } from 'lucide-react';
 import { RppData } from '../types';
 import { makeApiCall } from '../lib/api';
 
 interface OutputSectionProps {
   rppData: RppData;
   setRppData: React.Dispatch<React.SetStateAction<RppData>>;
-  apiKey: string;
+  apiKeys: string[];
+  onBack: () => void;
 }
 
-export default function OutputSection({ rppData, setRppData, apiKey }: OutputSectionProps) {
+export default function OutputSection({ rppData, setRppData, apiKeys, onBack }: OutputSectionProps) {
   const [step, setStep] = useState<number>(3); // 3: TP, 4: ATP, 5: KKTP, 6: RPP
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -49,12 +50,12 @@ export default function OutputSection({ rppData, setRppData, apiKey }: OutputSec
           asesmenProsesHtml,
           asesmenAkhirHtml
         ] = await Promise.all([
-          createIdentifikasiMateri(rppData, apiKey),
-          createDesainPembelajaran(rppData, currentTopicData, apiKey),
-          createLangkahPembelajaran(rppData, currentTopicData, apiKey),
-          createAsesmenAwal(rppData, currentTopicData, apiKey),
-          createAsesmenProses(rppData, currentTopicData, apiKey),
-          createAsesmenAkhir(rppData, currentTopicData, apiKey)
+          createIdentifikasiMateri(rppData, apiKeys),
+          createDesainPembelajaran(rppData, currentTopicData, apiKeys),
+          createLangkahPembelajaran(rppData, currentTopicData, apiKeys),
+          createAsesmenAwal(rppData, currentTopicData, apiKeys),
+          createAsesmenProses(rppData, currentTopicData, apiKeys),
+          createAsesmenAkhir(rppData, currentTopicData, apiKeys)
         ]);
 
         finalHtml += `
@@ -127,14 +128,35 @@ export default function OutputSection({ rppData, setRppData, apiKey }: OutputSec
     }, 500);
   };
 
+  const handleDownloadWord = (contentId: string, filename: string) => {
+    const content = document.getElementById(contentId)?.innerHTML || '';
+    const header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Export HTML To Doc</title></head><body>";
+    const footer = "</body></html>";
+    const sourceHTML = header + content + footer;
+    
+    const source = 'data:application/vnd.ms-word;charset=utf-8,' + encodeURIComponent(sourceHTML);
+    const fileDownload = document.createElement("a");
+    document.body.appendChild(fileDownload);
+    fileDownload.href = source;
+    fileDownload.download = `${filename}.doc`;
+    fileDownload.click();
+    document.body.removeChild(fileDownload);
+  };
+
   return (
-    <div className="space-y-6 mt-8">
+    <div className="space-y-6">
       {/* TP Section */}
+      {step === 3 && (
       <section className="bg-white rounded-xl p-6 shadow-sm border border-gray-100" id="section-3">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-gray-800">3. Tujuan Pembelajaran (TP)</h2>
+          <div className="flex items-center gap-3">
+            <button onClick={onBack} className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors" title="Kembali ke Form">
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <h2 className="text-xl font-bold text-gray-800">3. Tujuan Pembelajaran (TP)</h2>
+          </div>
           <button onClick={() => handlePrint('tp-output', 'Tujuan Pembelajaran')} className="flex items-center px-4 py-2 rounded-lg font-semibold text-white bg-green-600 hover:bg-green-700 transition-colors text-sm">
-            <Printer className="w-4 h-4 mr-2" /> Cetak
+            <Printer className="w-4 h-4 mr-2" /> Cetak / PDF
           </button>
         </div>
         <div id="tp-output">
@@ -164,19 +186,30 @@ export default function OutputSection({ rppData, setRppData, apiKey }: OutputSec
           ))}
         </div>
         {step === 3 && (
-          <button onClick={handleGenerateATP} className="mt-6 px-6 py-3 rounded-lg font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors">
-            Buat Alur Tujuan Pembelajaran
-          </button>
+          <div className="flex gap-3 mt-6">
+            <button onClick={onBack} className="px-6 py-3 rounded-lg font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors">
+              Kembali
+            </button>
+            <button onClick={handleGenerateATP} className="px-6 py-3 rounded-lg font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors">
+              Lanjut: Buat Alur Tujuan Pembelajaran
+            </button>
+          </div>
         )}
       </section>
+      )}
 
       {/* ATP Section */}
-      {step >= 4 && (
+      {step === 4 && (
         <section className="bg-white rounded-xl p-6 shadow-sm border border-gray-100" id="section-4">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold text-gray-800">4. Alur Tujuan Pembelajaran (ATP)</h2>
+            <div className="flex items-center gap-3">
+              <button onClick={() => setStep(3)} className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors" title="Kembali ke TP">
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+              <h2 className="text-xl font-bold text-gray-800">4. Alur Tujuan Pembelajaran (ATP)</h2>
+            </div>
             <button onClick={() => handlePrint('atp-output', 'Alur Tujuan Pembelajaran')} className="flex items-center px-4 py-2 rounded-lg font-semibold text-white bg-green-600 hover:bg-green-700 transition-colors text-sm">
-              <Printer className="w-4 h-4 mr-2" /> Cetak
+              <Printer className="w-4 h-4 mr-2" /> Cetak / PDF
             </button>
           </div>
           <div id="atp-output">
@@ -206,20 +239,30 @@ export default function OutputSection({ rppData, setRppData, apiKey }: OutputSec
             ))}
           </div>
           {step === 4 && (
-            <button onClick={handleGenerateKKTP} className="mt-6 px-6 py-3 rounded-lg font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors">
-              Buat KKTP
-            </button>
+            <div className="flex gap-3 mt-6">
+              <button onClick={() => setStep(3)} className="px-6 py-3 rounded-lg font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors">
+                Kembali
+              </button>
+              <button onClick={handleGenerateKKTP} className="px-6 py-3 rounded-lg font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors">
+                Lanjut: Buat KKTP
+              </button>
+            </div>
           )}
         </section>
       )}
 
       {/* KKTP Section */}
-      {step >= 5 && (
+      {step === 5 && (
         <section className="bg-white rounded-xl p-6 shadow-sm border border-gray-100" id="section-5">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold text-gray-800">5. Kriteria Ketercapaian Tujuan Pembelajaran (KKTP)</h2>
+            <div className="flex items-center gap-3">
+              <button onClick={() => setStep(4)} className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors" title="Kembali ke ATP">
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+              <h2 className="text-xl font-bold text-gray-800">5. Kriteria Ketercapaian Tujuan Pembelajaran (KKTP)</h2>
+            </div>
             <button onClick={() => handlePrint('kktp-output', 'KKTP')} className="flex items-center px-4 py-2 rounded-lg font-semibold text-white bg-green-600 hover:bg-green-700 transition-colors text-sm">
-              <Printer className="w-4 h-4 mr-2" /> Cetak
+              <Printer className="w-4 h-4 mr-2" /> Cetak / PDF
             </button>
           </div>
           <div id="kktp-output">
@@ -263,15 +306,20 @@ export default function OutputSection({ rppData, setRppData, apiKey }: OutputSec
             </div>
           </div>
           {step === 5 && (
-            <button onClick={handleGenerateRPP} className="mt-6 flex items-center px-6 py-3 rounded-lg font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors">
-              <FileText className="w-5 h-5 mr-2" /> Buat Rencana Pembelajaran Lengkap
-            </button>
+            <div className="flex gap-3 mt-6">
+              <button onClick={() => setStep(4)} className="px-6 py-3 rounded-lg font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors">
+                Kembali
+              </button>
+              <button onClick={handleGenerateRPP} className="flex items-center px-6 py-3 rounded-lg font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors">
+                <FileText className="w-5 h-5 mr-2" /> Buat Rencana Pembelajaran Lengkap
+              </button>
+            </div>
           )}
         </section>
       )}
 
       {/* RPP Output */}
-      {step >= 6 && (
+      {step === 6 && (
         <section className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-12">
@@ -286,13 +334,21 @@ export default function OutputSection({ rppData, setRppData, apiKey }: OutputSec
           ) : (
             <>
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-                <h2 className="text-2xl font-bold text-gray-800">Hasil Dokumen Rencana Pembelajaran</h2>
-                <div className="flex gap-3">
+                <div className="flex items-center gap-3">
+                  <button onClick={() => setStep(5)} className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors" title="Kembali ke KKTP">
+                    <ArrowLeft className="w-5 h-5" />
+                  </button>
+                  <h2 className="text-2xl font-bold text-gray-800">Hasil Dokumen Rencana Pembelajaran</h2>
+                </div>
+                <div className="flex flex-wrap gap-3">
                   <button onClick={() => setIsEditing(!isEditing)} className={`flex items-center px-4 py-2 rounded-lg font-semibold text-white transition-colors ${isEditing ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-amber-500 hover:bg-amber-600'}`}>
                     {isEditing ? <><Save className="w-4 h-4 mr-2" /> Simpan Edit</> : <><Edit className="w-4 h-4 mr-2" /> Edit Dokumen</>}
                   </button>
                   <button onClick={() => handlePrint('rpp-content-to-export', 'RPP')} disabled={isEditing} className="flex items-center px-4 py-2 rounded-lg font-semibold text-white bg-green-600 hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                    <Printer className="w-4 h-4 mr-2" /> Cetak
+                    <Printer className="w-4 h-4 mr-2" /> Download PDF
+                  </button>
+                  <button onClick={() => handleDownloadWord('rpp-content-to-export', 'RPP_Garda_Spendus')} disabled={isEditing} className="flex items-center px-4 py-2 rounded-lg font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    <Download className="w-4 h-4 mr-2" /> Download Word
                   </button>
                 </div>
               </div>
@@ -313,21 +369,21 @@ export default function OutputSection({ rppData, setRppData, apiKey }: OutputSec
 // Helper functions for RPP generation
 function createHeaderTable(data: RppData) {
   return `
-    <table class="w-full mb-6 border-collapse">
+    <table style="width: 100%; margin-bottom: 1.5rem; border-collapse: collapse; font-family: 'Times New Roman', Times, serif; font-size: 11pt;">
       <tbody>
-        <tr><td class="font-bold w-1/4 p-2 border border-gray-300 bg-gray-50">NAMA SEKOLAH</td><td class="p-2 border border-gray-300">: ${data.namaSekolah.toUpperCase()}</td></tr>
-        <tr><td class="font-bold p-2 border border-gray-300 bg-gray-50">KELAS / SEMESTER</td><td class="p-2 border border-gray-300">: ${data.kelasSemester.toUpperCase()}</td></tr>
-        <tr><td class="font-bold p-2 border border-gray-300 bg-gray-50">MATA PELAJARAN</td><td class="p-2 border border-gray-300">: ${data.mapel.toUpperCase()}</td></tr>
-        <tr><td class="font-bold p-2 border border-gray-300 bg-gray-50">ALOKASI WAKTU</td><td class="p-2 border border-gray-300">: ${data.durasiPertemuan}</td></tr>
+        <tr><td style="font-weight: bold; width: 25%; padding: 8px; border: 1px solid #000; background-color: #f9fafb;">NAMA SEKOLAH</td><td style="padding: 8px; border: 1px solid #000;">: ${data.namaSekolah.toUpperCase()}</td></tr>
+        <tr><td style="font-weight: bold; padding: 8px; border: 1px solid #000; background-color: #f9fafb;">KELAS / SEMESTER</td><td style="padding: 8px; border: 1px solid #000;">: ${data.kelasSemester.toUpperCase()}</td></tr>
+        <tr><td style="font-weight: bold; padding: 8px; border: 1px solid #000; background-color: #f9fafb;">MATA PELAJARAN</td><td style="padding: 8px; border: 1px solid #000;">: ${data.mapel.toUpperCase()}</td></tr>
+        <tr><td style="font-weight: bold; padding: 8px; border: 1px solid #000; background-color: #f9fafb;">ALOKASI WAKTU</td><td style="padding: 8px; border: 1px solid #000;">: ${data.durasiPertemuan}</td></tr>
       </tbody>
     </table>`;
 }
 
 function createIdentifikasiPesertaDidik(data: RppData) {
   return `
-    <h4 class="font-bold text-[11pt] mt-4 mb-2">Peserta Didik:</h4>
-    <p class="mb-2">Identifikasi kesiapan peserta didik sebelum belajar, seperti pengetahuan awal, minat, latar belakang, dan kebutuhan belajar, serta aspek lainnya:</p>
-    <ul class="list-disc pl-6 mb-4 space-y-1">
+    <h4 style="font-weight: bold; font-size: 11pt; margin-top: 1rem; margin-bottom: 0.5rem;">Peserta Didik:</h4>
+    <p style="margin-bottom: 0.5rem;">Identifikasi kesiapan peserta didik sebelum belajar, seperti pengetahuan awal, minat, latar belakang, dan kebutuhan belajar, serta aspek lainnya:</p>
+    <ul style="margin-left: 1.5rem; margin-bottom: 1rem;">
       <li><strong>Pengetahuan awal:</strong> ${data.karakteristik}</li>
       <li><strong>Minat:</strong> ${data.minat}</li>
       <li><strong>Motivasi:</strong> ${data.motivasi}</li>
@@ -336,7 +392,7 @@ function createIdentifikasiPesertaDidik(data: RppData) {
     </ul>`;
 }
 
-async function createIdentifikasiMateri(data: RppData, apiKey: string) {
+async function createIdentifikasiMateri(data: RppData, apiKeys: string[]) {
   const prompt = `Anda adalah seorang ahli kurikulum. Berdasarkan Capaian Pembelajaran berikut: '${data.cp_full_text}' untuk mata pelajaran '${data.mapel}' kelas '${data.kelasSemester}', buatlah analisis materi pelajaran yang mendalam dalam format JSON. JSON harus memiliki kunci berikut: 'jenis_pengetahuan' (dengan sub-kunci 'konseptual', 'procedural', 'metakognitif'), 'relevansi_kehidupan_nyata', 'tingkat_kesulitan' (jelaskan alasannya), 'struktur_materi', dan 'integrasi_nilai_karakter' (sebutkan 5 nilai karakter dan jelaskan integrasinya).`;
   const schema = {
     type: "OBJECT",
@@ -349,7 +405,7 @@ async function createIdentifikasiMateri(data: RppData, apiKey: string) {
     },
     required: ["jenis_pengetahuan", "relevansi_kehidupan_nyata", "tingkat_kesulitan", "struktur_materi", "integrasi_nilai_karakter"]
   };
-  const result = await makeApiCall(prompt, apiKey, schema);
+  const result = await makeApiCall(prompt, apiKeys, schema);
   return `
     <h4 class="font-bold text-[11pt] mt-4 mb-2">Materi Pelajaran:</h4>
     <ol class="list-decimal pl-6 mb-4 space-y-2">
@@ -382,7 +438,7 @@ function createCapaianPembelajaran(data: RppData) {
   return `<h4 class="font-bold text-[11pt] mt-4 mb-2">Capaian Pembelajaran:</h4><p class="mb-4">${data.cp_full_text}</p>`;
 }
 
-async function createDesainPembelajaran(data: RppData, topicData: any, apiKey: string) {
+async function createDesainPembelajaran(data: RppData, topicData: any, apiKeys: string[]) {
   const prompt = `Anda adalah seorang desainer pembelajaran. Untuk materi pokok: "${topicData.topic}", buatlah detail desain pembelajaran dalam format JSON. JSON harus memiliki kunci: 'lintas_disiplin' (array string nama mapel), 'topik_pembelajaran' (array string topik spesifik turunan dari materi pokok), dan 'praktik_pedagogis' (jelaskan 3 praktik yang sesuai). Gunakan juga data lingkungan belajar ini: Fisik='${data.lingkunganFisik}', Virtual='${data.lingkunganVirtual}', Budaya='${data.budayaBelajar}' untuk melengkapi penjelasan Anda.`;
   const schema = {
     type: "OBJECT",
@@ -393,7 +449,7 @@ async function createDesainPembelajaran(data: RppData, topicData: any, apiKey: s
     },
     required: ["lintas_disiplin", "topik_pembelajaran", "praktik_pedagogis"]
   };
-  const result = await makeApiCall(prompt, apiKey, schema);
+  const result = await makeApiCall(prompt, apiKeys, schema);
   const tpsForThisMeeting = `<h5 class="font-bold mt-3 mb-1">Tujuan Pembelajaran Pertemuan Ini:</h5><ul class="list-disc pl-6 mb-3">${topicData.tps.map((tp:any) => `<li>${tp.text}</li>`).join('')}</ul>`;
 
   return `
@@ -426,7 +482,7 @@ function createSumberBelajarHtml(data: RppData, topicData: any) {
   return `<h4 class="font-bold text-[11pt] mt-4 mb-2">Sumber Belajar:</h4><ul class="list-disc pl-6 mb-4">${listItems}</ul>`;
 }
 
-async function createLangkahPembelajaran(data: RppData, topicData: any, apiKey: string) {
+async function createLangkahPembelajaran(data: RppData, topicData: any, apiKeys: string[]) {
   const tpsJoined = topicData.tps.map((t:any) => t.text).join(', ');
   const prompt = `Anda adalah seorang guru inovatif. Rancang langkah-langkah pembelajaran dalam format tabel untuk sebuah pertemuan. Model Pembelajaran yang harus digunakan adalah: ${data.modelPembelajaran}. Bagian 'inti' dari pembelajaran HARUS secara eksplisit mengikuti sintaks/langkah-langkah dari model ${data.modelPembelajaran}. Topik pertemuan ini adalah: '${topicData.topic}', dengan Tujuan Pembelajaran: '${tpsJoined}'. Format jawaban dalam JSON dengan kunci: 'awal', 'inti', dan 'penutup'. Masing-masing kunci berisi array objek. Setiap objek mewakili satu baris tabel dan harus memiliki kunci 'tahap' (untuk tahap inti, gunakan nama sintaks modelnya), 'prinsip' (pilih dari 'Berkesadaran', 'Bermakna', 'Menggembirakan'), dan 'deskripsi' (jelaskan aktivitas guru dan siswa secara rinci).`;
   const schema = {
@@ -438,7 +494,7 @@ async function createLangkahPembelajaran(data: RppData, topicData: any, apiKey: 
     },
     required: ["awal", "inti", "penutup"]
   };
-  const result = await makeApiCall(prompt, apiKey, schema);
+  const result = await makeApiCall(prompt, apiKeys, schema);
 
   const renderTableSection = (title: string, steps: any[]) => {
     if (!steps || steps.length === 0) return '';
@@ -452,7 +508,7 @@ async function createLangkahPembelajaran(data: RppData, topicData: any, apiKey: 
          renderTableSection('PENUTUP', result.penutup);
 }
 
-async function createAsesmenAwal(data: RppData, topicData: any, apiKey: string) {
+async function createAsesmenAwal(data: RppData, topicData: any, apiKeys: string[]) {
   const prompt = `Anda adalah seorang ahli evaluasi pendidikan. Buat draf asesmen diagnostik (asesmen pada awal pembelajaran) untuk topik "${topicData.topic}" bagi siswa jenjang ${data.jenjang}. Format jawaban dalam JSON. JSON harus memiliki kunci: 'tujuan' (string), 'metode' (string), 'bagian_a' (objek dengan kunci 'deskripsi' dan 'pertanyaan', dimana 'pertanyaan' adalah array string), 'bagian_b' (objek dengan kunci 'deskripsi' dan 'pertanyaan', dimana 'pertanyaan' adalah array string), dan 'cara_penggunaan' (string, jelaskan analisis, diferensiasi, dan koneksi materi). Buat 3-4 pertanyaan untuk setiap bagian yang relevan dengan topik.`;
   const schema = {
     type: "OBJECT",
@@ -465,7 +521,7 @@ async function createAsesmenAwal(data: RppData, topicData: any, apiKey: string) 
     },
     required: ["tujuan", "metode", "bagian_a", "bagian_b", "cara_penggunaan"]
   };
-  const result = await makeApiCall(prompt, apiKey, schema);
+  const result = await makeApiCall(prompt, apiKeys, schema);
   return `
     <h4 class="font-bold text-[11pt] mt-4 mb-2">Asesmen pada Awal Pembelajaran:</h4>
     <p class="mb-1"><strong>Tujuan:</strong> ${result.tujuan}</p>
@@ -478,7 +534,7 @@ async function createAsesmenAwal(data: RppData, topicData: any, apiKey: string) 
     <p class="mb-4">${result.cara_penggunaan.replace(/\\n/g, '<br>')}</p>`;
 }
 
-async function createAsesmenProses(data: RppData, topicData: any, apiKey: string) {
+async function createAsesmenProses(data: RppData, topicData: any, apiKeys: string[]) {
   const prompt = `Anda adalah ahli asesmen. Buat draf asesmen proses pembelajaran untuk topik "${topicData.topic}". Format jawaban dalam JSON dengan tiga kunci utama: 'observasi', 'penilaian_kinerja', dan 'peer_assessment'. Untuk 'observasi', berikan 'fokus_observasi', 4 'indikator' (array), dan 'skala_penilaian' (array objek dengan kunci 'skala' dan 'deskripsi'). Untuk 'penilaian_kinerja', berikan 'fokus_penilaian', 'contoh_tugas', dan 'rubrik' (array objek dengan kunci 'aspek', 'sangat_baik', 'baik', 'cukup', 'kurang'). Untuk 'peer_assessment', berikan 4 'contoh_pertanyaan' (array).`;
   const schema = {
     type: "OBJECT",
@@ -489,7 +545,7 @@ async function createAsesmenProses(data: RppData, topicData: any, apiKey: string
     },
     required: ["observasi", "penilaian_kinerja", "peer_assessment"]
   };
-  const parsedResult = await makeApiCall(prompt, apiKey, schema);
+  const parsedResult = await makeApiCall(prompt, apiKeys, schema);
 
   let observasiHtml = `<h5 class="font-bold mt-4 mb-2">1. Observasi (Assessment as Learning & For Learning)</h5>
     <p class="mb-1"><b>Fokus Observasi:</b> ${parsedResult?.observasi?.fokus_observasi || ''}</p>
@@ -512,7 +568,7 @@ async function createAsesmenProses(data: RppData, topicData: any, apiKey: string
   return `<h4 class="font-bold text-[11pt] mt-4 mb-2">Asesmen pada Proses Pembelajaran:</h4>${observasiHtml}${kinerjaHtml}${peerHtml}`;
 }
 
-async function createAsesmenAkhir(data: RppData, topicData: any, apiKey: string) {
+async function createAsesmenAkhir(data: RppData, topicData: any, apiKeys: string[]) {
   const prompt = `Anda adalah ahli asesmen. Buat draf asesmen akhir pembelajaran untuk topik "${topicData.topic}". Format jawaban dalam JSON dengan dua kunci utama: 'penilaian_proyek' dan 'portofolio'. Untuk 'penilaian_proyek', berikan 'fokus_penilaian', 'contoh_proyek' (jelaskan detailnya), dan 'rubrik' (array objek dengan kunci 'aspek', 'sangat_baik', 'baik', 'cukup', 'kurang'). Untuk 'portofolio', berikan 'fokus_penilaian', 5 'contoh_isi' (array), dan 'rubrik' (array objek dengan kunci 'aspek', 'sangat_baik', 'baik', 'cukup', 'kurang').`;
   const schema = {
     type: "OBJECT",
@@ -522,7 +578,7 @@ async function createAsesmenAkhir(data: RppData, topicData: any, apiKey: string)
     },
     required: ["penilaian_proyek", "portofolio"]
   };
-  const parsedResult = await makeApiCall(prompt, apiKey, schema);
+  const parsedResult = await makeApiCall(prompt, apiKeys, schema);
 
   let proyekHtml = `<h5 class="font-bold mt-4 mb-2">1. Penilaian Proyek (Assessment of Learning)</h5>
     <p class="mb-1"><b>Fokus Penilaian:</b> ${parsedResult?.penilaian_proyek?.fokus_penilaian || ''}</p>
@@ -553,20 +609,22 @@ function createTandaTangan(data: RppData) {
   const kepsekNipDisplay = kepsek.nip ? `NIP: ${kepsek.nip}` : 'NIP: .................................';
   const guruNipDisplay = guru.nip ? `NIP: ${guru.nip}` : 'NIP: .................................';
   return `
-    <div class="mt-16 flex justify-between text-center" style="page-break-inside: avoid;">
-      <div class="w-[40%]">
-        <p>Mengetahui,</p>
-        <p>Kepala Sekolah</p>
-        <div class="h-24"></div>
-        <p class="font-bold underline">${kepsek.name}</p>
-        <p>${kepsekNipDisplay}</p>
-      </div>
-      <div class="w-[40%]">
-        <p>${data.kota}, ${formattedDate}</p>
-        <p>Guru Mata Pelajaran</p>
-        <div class="h-24"></div>
-        <p class="font-bold underline">${guru.name}</p>
-        <p>${guruNipDisplay}</p>
-      </div>
-    </div>`;
+    <table style="width: 100%; margin-top: 4rem; text-align: center; border: none; font-family: 'Times New Roman', Times, serif; font-size: 11pt;">
+      <tr>
+        <td style="width: 50%; border: none; vertical-align: top;">
+          <p style="margin: 0;">Mengetahui,</p>
+          <p style="margin: 0;">Kepala Sekolah</p>
+          <br><br><br><br>
+          <p style="margin: 0; font-weight: bold; text-decoration: underline;">${kepsek.name}</p>
+          <p style="margin: 0;">${kepsekNipDisplay}</p>
+        </td>
+        <td style="width: 50%; border: none; vertical-align: top;">
+          <p style="margin: 0;">${data.kota}, ${formattedDate}</p>
+          <p style="margin: 0;">Guru Mata Pelajaran</p>
+          <br><br><br><br>
+          <p style="margin: 0; font-weight: bold; text-decoration: underline;">${guru.name}</p>
+          <p style="margin: 0;">${guruNipDisplay}</p>
+        </td>
+      </tr>
+    </table>`;
 }

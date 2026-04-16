@@ -220,9 +220,25 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
               <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2"><Key className="w-6 h-6 text-blue-600" /> Konfigurasi API Gemini</h2>
               <div className="space-y-6">
                 <div>
-                  <label className="block font-semibold text-gray-700 mb-2">API Key</label>
-                  <input type="password" placeholder="Masukkan API Key Gemini" className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" value={config.apiKey} onChange={e => setConfig({...config, apiKey: e.target.value})} />
-                  <p className="text-sm text-gray-500 mt-2">API Key ini akan digunakan oleh seluruh pengguna aplikasi jika mereka tidak mengatur API Key sendiri (opsional).</p>
+                  <p className="text-sm text-gray-600 mb-4">Anda dapat memasukkan hingga 10 API Key. Jika API Key pertama kehabisan kuota atau bermasalah, sistem akan otomatis menggunakan API Key berikutnya.</p>
+                  <div className="space-y-3">
+                    {config.apiKeys.map((key, index) => (
+                      <div key={index} className="flex items-center gap-3">
+                        <span className="w-8 text-center font-semibold text-gray-500">{index + 1}.</span>
+                        <input 
+                          type="password" 
+                          placeholder={`API Key ${index + 1}`} 
+                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" 
+                          value={key} 
+                          onChange={e => {
+                            const newKeys = [...config.apiKeys];
+                            newKeys[index] = e.target.value;
+                            setConfig({...config, apiKeys: newKeys});
+                          }} 
+                        />
+                      </div>
+                    ))}
+                  </div>
                 </div>
                 <button onClick={handleSaveConfig} className="flex items-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors">
                   <Save className="w-5 h-5 mr-2" /> Simpan API Key

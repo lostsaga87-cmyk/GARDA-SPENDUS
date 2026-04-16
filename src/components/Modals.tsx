@@ -83,11 +83,11 @@ export function ApiKeyModal({
 export function IdeaModal({ 
   onClose, 
   rppData, 
-  apiKey 
+  apiKeys 
 }: { 
   onClose: () => void, 
   rppData: any, 
-  apiKey: string 
+  apiKeys: string[] 
 }) {
   const [iceBreaking, setIceBreaking] = useState('');
   const [summary, setSummary] = useState('');
@@ -106,7 +106,7 @@ export function IdeaModal({
         prompt = `Buat 3 pertanyaan refleksi yang mendalam untuk siswa jenjang ${rppData.jenjang} di akhir pelajaran dengan topik "${rppData.cp_full_text}". Pertanyaan harus mendorong siswa untuk menghubungkan materi dengan pengalaman mereka sendiri. Sajikan dalam format daftar bernomor.`;
       }
 
-      const result = await makeApiCall(prompt, apiKey);
+      const result = await makeApiCall(prompt, apiKeys);
       
       if (type === 'ice') setIceBreaking(result);
       if (type === 'summary') setSummary(result);

@@ -7,6 +7,8 @@ export interface User {
   namaSekolah?: string;
   noHp?: string;
   nip?: string;
+  namaKepsek?: string;
+  mapel?: string[];
   role: 'admin' | 'user';
   status: 'approved' | 'pending' | 'rejected';
 }
@@ -14,14 +16,14 @@ export interface User {
 export interface AppConfig {
   appName: string;
   appLogo: string;
-  apiKey: string;
+  apiKeys: string[];
   cpData: Record<string, string>;
 }
 
 export const DEFAULT_CONFIG: AppConfig = {
   appName: "GARDA SPENDUS",
   appLogo: "https://lh3.googleusercontent.com/d/1ltGZoLoeamrE79q-Uzwx3KUg6A987qo2",
-  apiKey: "",
+  apiKeys: Array(10).fill(""),
   cpData: {
     A: "",
     B: "",
@@ -42,10 +44,25 @@ export async function getAppConfig(): Promise<AppConfig | null> {
     console.error('Error fetching app config:', error);
     return null;
   }
+  
+  let parsedApiKeys: string[] = Array(10).fill("");
+  if (data.api_key) {
+    try {
+      const parsed = JSON.parse(data.api_key);
+      if (Array.isArray(parsed)) {
+        parsedApiKeys = [...parsed, ...Array(10)].slice(0, 10);
+      } else {
+        parsedApiKeys[0] = data.api_key;
+      }
+    } catch (e) {
+      parsedApiKeys[0] = data.api_key;
+    }
+  }
+
   return {
     appName: data.app_name,
     appLogo: data.app_logo,
-    apiKey: data.api_key || '',
+    apiKeys: parsedApiKeys,
     cpData: data.cp_data || {}
   };
 }
@@ -55,7 +72,7 @@ export async function updateAppConfig(config: AppConfig) {
     id: 1,
     app_name: config.appName,
     app_logo: config.appLogo,
-    api_key: config.apiKey,
+    api_key: JSON.stringify(config.apiKeys),
     cp_data: config.cpData
   });
   if (error) throw error;
@@ -70,6 +87,16 @@ export async function loginUser(nip: string, password: string): Promise<User | n
     .single();
   
   if (error || !data) return null;
+  
+  let parsedMapel: string[] = [];
+  if (data.mapel) {
+    try {
+      parsedMapel = typeof data.mapel === 'string' ? JSON.parse(data.mapel) : data.mapel;
+    } catch (e) {
+      console.error('Error parsing mapel:', e);
+    }
+  }
+
   return {
     id: data.id,
     username: data.username,
@@ -77,7 +104,9 @@ export async function loginUser(nip: string, password: string): Promise<User | n
     status: data.status,
     namaSekolah: data.nama_sekolah,
     noHp: data.no_hp,
-    nip: data.nip
+    nip: data.nip,
+    namaKepsek: data.nama_kepsek,
+    mapel: parsedMapel
   };
 }
 
@@ -88,6 +117,8 @@ export async function registerUser(userData: any) {
     nama_sekolah: userData.namaSekolah,
     no_hp: userData.noHp,
     nip: userData.nip,
+    nama_kepsek: userData.namaKepsek,
+    mapel: userData.mapel,
     role: 'user',
     status: 'pending'
   }]);
@@ -97,15 +128,25 @@ export async function registerUser(userData: any) {
 export async function getUsers(): Promise<User[]> {
   const { data, error } = await supabase.from('users').select('*').order('created_at', { ascending: false });
   if (error || !data) return [];
-  return data.map(d => ({
-    id: d.id,
-    username: d.username,
-    role: d.role,
-    status: d.status,
-    namaSekolah: d.nama_sekolah,
-    noHp: d.no_hp,
-    nip: d.nip
-  }));
+  return data.map(d => {
+    let parsedMapel: string[] = [];
+    if (d.mapel) {
+      try {
+        parsedMapel = typeof d.mapel === 'string' ? JSON.parse(d.mapel) : d.mapel;
+      } catch (e) {}
+    }
+    return {
+      id: d.id,
+      username: d.username,
+      role: d.role,
+      status: d.status,
+      namaSekolah: d.nama_sekolah,
+      noHp: d.no_hp,
+      nip: d.nip,
+      namaKepsek: d.nama_kepsek,
+      mapel: parsedMapel
+    };
+  });
 }
 
 export async function updateUserStatus(id: string, status: string) {

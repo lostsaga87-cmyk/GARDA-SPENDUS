@@ -22,6 +22,18 @@ export default function App() {
       getAppConfig().then(config => {
         setAppConfig(config);
         setLoading(false);
+        
+        // Update document title and favicon
+        if (config) {
+          document.title = config.appName || 'GARDA SPENDUS';
+          let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
+          if (!link) {
+            link = document.createElement('link');
+            link.rel = 'icon';
+            document.head.appendChild(link);
+          }
+          link.href = config.appLogo || 'https://lh3.googleusercontent.com/d/1ltGZoLoeamrE79q-Uzwx3KUg6A987qo2';
+        }
       }).catch(err => {
         console.error(err);
         setLoading(false);

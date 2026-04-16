@@ -1,0 +1,33 @@
+export interface RppData {
+  namaSekolah: string;
+  jenjang: string;
+  mapel: string;
+  tahunPelajaran: string;
+  kelasSemester: string;
+  fase: string;
+  jumlahPertemuan: number;
+  durasiPertemuan: string;
+  alokasiWaktu: string;
+  lingkungan: string;
+  namaGuru: string;
+  namaKepsek: string;
+  kota: string;
+  kktpTercapaiMin: number;
+  karakteristik: string;
+  minat: string;
+  motivasi: string;
+  prestasi: string;
+  profilLulusan: string[];
+  saranaPrasarana: string;
+  kemitraan: string;
+  lingkunganFisik: string;
+  lingkunganVirtual: string;
+  budayaBelajar: string;
+  digitalPerencanaan: string;
+  digitalPelaksanaan: string;
+  digitalAsesmen: string;
+  modelPembelajaran: string;
+  sumberBelajar: string[];
+  cp_full_text: string;
+  tujuanPembelajaran: any[];
+}

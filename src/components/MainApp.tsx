@@ -5,8 +5,8 @@ import OutputSection from './OutputSection';
 import { HelpModal, IdeaModal } from './Modals';
 import { RppData } from '../types';
 import { makeApiCall } from '../lib/api';
-import { AppConfig, User, logActivity, getUserHistory, updatePassword } from '../lib/store';
-import { User as UserIcon, Clock, History, Key, X, Check, Menu, HelpCircle, LogOut } from 'lucide-react';
+import { AppConfig, User, logActivity, getUserHistory, updatePassword, getUserDocuments, SavedDocument, getDocumentById } from '../lib/store';
+import { User as UserIcon, Clock, History, Key, X, Check, Menu, HelpCircle, LogOut, FileText, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 
@@ -16,8 +16,10 @@ export default function MainApp({ onLogout, appConfig, currentUser }: { onLogout
   const [showIdeaModal, setShowIdeaModal] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showDocuments, setShowDocuments] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [userHistory, setUserHistory] = useState<any[]>([]);
+  const [userDocuments, setUserDocuments] = useState<SavedDocument[]>([]);
   
   // Password change state
   const [newPassword, setNewPassword] = useState('');
@@ -35,6 +37,12 @@ export default function MainApp({ onLogout, appConfig, currentUser }: { onLogout
       getUserHistory(currentUser.id).then(history => setUserHistory(history));
     }
   }, [showProfile, showHistory, currentUser.id]);
+
+  useEffect(() => {
+    if (showDocuments) {
+      getUserDocuments(currentUser.id).then(docs => setUserDocuments(docs));
+    }
+  }, [showDocuments, currentUser.id]);
 
   const [rppData, setRppData] = useState<RppData>({
     namaSekolah: currentUser.namaSekolah || '', jenjang: 'SMP', mapel: currentUser.mapel?.join(', ') || '', tahunPelajaran: '2025/2026', kelasSemester: '', fase: '',
@@ -240,6 +248,10 @@ Untuk setiap materi pokok, buatkan 3 Tujuan Pembelajaran (TP) sesuai level kogni
               <History className="w-5 h-5 shrink-0 text-purple-500" />
               {isSidebarOpen && <span className="font-medium text-gray-700">Riwayat Aktivitas</span>}
             </button>
+            <button onClick={() => setShowDocuments(true)} className={`flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 text-gray-700 transition-colors mt-1 ${!isSidebarOpen && 'justify-center'}`} title="Dokumen Tersimpan">
+              <FileText className="w-5 h-5 shrink-0 text-green-500" />
+              {isSidebarOpen && <span className="font-medium text-gray-700">Dokumen</span>}
+            </button>
           </div>
 
           <div className="mt-auto flex flex-col gap-2 pt-4 border-t border-gray-100">
@@ -294,6 +306,7 @@ Untuk setiap materi pokok, buatkan 3 Tujuan Pembelajaran (TP) sesuai level kogni
                 setRppData={setRppData}
                 apiKeys={appConfig.apiKeys}
                 onBack={() => setShowOutput(false)}
+                userId={currentUser.id}
               />
             </div>
           )}
@@ -436,6 +449,99 @@ Untuk setiap materi pokok, buatkan 3 Tujuan Pembelajaran (TP) sesuai level kogni
                   ))
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Documents Modal */}
+      {showDocuments && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-slate-50">
+              <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                <FileText className="w-6 h-6 text-green-600" /> Dokumen Tersimpan
+              </h2>
+              <button onClick={() => setShowDocuments(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto flex-1">
+              {userDocuments.length === 0 ? (
+                <div className="text-center py-12">
+                  <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-500 font-medium">Belum ada dokumen yang disimpan.</p>
+                  <p className="text-sm text-gray-400 mt-2">Generate RPP untuk menyimpan dokumen di sini.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {userDocuments.map((doc) => (
+                    <div key={doc.id} className="bg-white border text-left border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow flex flex-col items-start gap-3">
+                      <div className="flex items-start justify-between w-full">
+                        <div className="flex items-center gap-2">
+                          <div className="p-2 bg-green-100 text-green-700 rounded-lg">
+                            <FileText className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-gray-800">{doc.title}</h3>
+                            <p className="text-xs text-gray-500">{format(new Date(doc.created_at), 'dd MMMM yyyy, HH:mm', { locale: id })}</p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 w-full mt-2">
+                        <button 
+                          onClick={async () => {
+                            const fullDoc = await getDocumentById(doc.id);
+                            if (fullDoc && fullDoc.content) {
+                              // Re-use logic to download word
+                              const wordDocument = `
+                                <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+                                <head>
+                                  <meta charset='utf-8'>
+                                  <title>Export HTML To Doc</title>
+                                  <style>
+                                    @page WordSection1 { size: 21cm 29.7cm; margin: 2cm; }
+                                    div.WordSection1 { page: WordSection1; }
+                                    body { font-family: "Times New Roman", Times, serif; font-size: 11pt; line-height: 1.5; color: windowtext; }
+                                    table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+                                    td, th { border: 1px solid windowtext; padding: 5px; vertical-align: top; }
+                                    h2 { font-size: 14pt; font-weight: bold; text-align: center; }
+                                    h3 { font-size: 12pt; font-weight: bold; border-bottom: 1px solid windowtext; }
+                                    h4, h5 { font-size: 11pt; font-weight: bold; }
+                                    p { text-align: justify; margin: 0 0 10px 0; }
+                                  </style>
+                                </head>
+                                <body>
+                                  <div class="WordSection1">
+                                    ${fullDoc.content}
+                                  </div>
+                                </body>
+                                </html>
+                              `;
+                              const blob = new Blob(['\ufeff', wordDocument], { type: 'application/msword;charset=utf-8' });
+                              const downloadLink = document.createElement("a");
+                              document.body.appendChild(downloadLink);
+                              const filename = `${doc.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}`;
+                              const url = URL.createObjectURL(blob);
+                              downloadLink.href = url;
+                              downloadLink.download = `${filename}.doc`;
+                              downloadLink.click();
+                              setTimeout(() => {
+                                  document.body.removeChild(downloadLink);
+                                  window.URL.revokeObjectURL(url);
+                              }, 100);
+                            }
+                          }} 
+                          className="flex-1 flex justify-center items-center gap-2 bg-blue-50 text-blue-700 py-2 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium"
+                        >
+                          <Download className="w-4 h-4" /> Unduh (Word)
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -193,6 +193,57 @@ export async function getActivityStats() {
   return data;
 }
 
+export interface SavedDocument {
+  id: string;
+  user_id: string;
+  title: string;
+  content: string;
+  created_at: string;
+}
+
+export async function saveDocument(userId: string, title: string, content: string) {
+  const { error } = await supabase.from('saved_documents').insert([{
+    user_id: userId,
+    title,
+    content
+  }]);
+  if (error) throw error;
+}
+
+export async function getUserDocuments(userId: string) {
+  const { data, error } = await supabase
+    .from('saved_documents')
+    .select('id, user_id, title, created_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+  if (error) {
+    console.error('Error fetching documents:', error);
+    return [];
+  }
+  return data;
+}
+
+export async function getDocumentById(docId: string) {
+  const { data, error } = await supabase
+    .from('saved_documents')
+    .select('*')
+    .eq('id', docId)
+    .single();
+  if (error) {
+    console.error('Error fetching document:', error);
+    return null;
+  }
+  return data;
+}
+
+export async function deleteDocument(docId: string) {
+  const { error } = await supabase
+    .from('saved_documents')
+    .delete()
+    .eq('id', docId);
+  if (error) throw error;
+}
+
 // Fungsi dummy untuk kompatibilitas sementara jika ada komponen yang masih menggunakan getStoreData secara sinkron
 export const getStoreData = <T>(key: string, defaultValue: T): T => {
   return defaultValue;

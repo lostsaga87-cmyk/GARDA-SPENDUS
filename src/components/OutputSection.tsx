@@ -2,15 +2,17 @@ import React, { useState } from 'react';
 import { Printer, FileText, Edit, Save, ArrowLeft, Download } from 'lucide-react';
 import { RppData } from '../types';
 import { makeApiCall } from '../lib/api';
+import { saveDocument } from '../lib/store';
 
 interface OutputSectionProps {
   rppData: RppData;
   setRppData: React.Dispatch<React.SetStateAction<RppData>>;
   apiKeys: string[];
   onBack: () => void;
+  userId: string;
 }
 
-export default function OutputSection({ rppData, setRppData, apiKeys, onBack }: OutputSectionProps) {
+export default function OutputSection({ rppData, setRppData, apiKeys, onBack, userId }: OutputSectionProps) {
   const [step, setStep] = useState<number>(3); // 3: TP, 4: ATP, 5: KKTP, 6: RPP
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -59,7 +61,7 @@ export default function OutputSection({ rppData, setRppData, apiKeys, onBack }: 
         ]);
 
         finalHtml += `
-          <div class="rpp-section mb-12 page-break-after-always" style="page-break-after: always; margin-bottom: 3rem;">
+          <div class="rpp-section mb-12" style="margin-bottom: 3rem;">
             <h2 style="text-align: center; font-weight: bold; font-size: 14pt; margin-bottom: 1.5rem;">RENCANA PERANGKAT PEMBELAJARAN</h2>
             ${createHeaderTable(rppData)}
             
@@ -82,11 +84,18 @@ export default function OutputSection({ rppData, setRppData, apiKeys, onBack }: 
             ${asesmenAkhirHtml}
 
             ${createTandaTangan(rppData)}
-          </div>`;
+          </div>
+          ${i < meetingsToGenerate - 1 ? '<br clear="all" style="page-break-before: always; mso-break-type: section-break" />' : ''}`;
       }
 
       finalHtml += `</div>`;
       setRppHtml(finalHtml);
+      
+      // Save document automatically
+      const docTitle = `RPP ${rppData.mapel} - ${rppData.kelasSemester}`;
+      saveDocument(userId, docTitle, finalHtml).catch(e => {
+        console.error("Failed to save document:", e);
+      });
     } catch (err: any) {
       setError(err.message);
     } finally {

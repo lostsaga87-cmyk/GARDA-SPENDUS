@@ -41,20 +41,21 @@ export default function OutputSection({ rppData, setRppData, apiKeys, onBack, us
         finalHtml += `<div class="p-4 mb-4 text-sm text-yellow-800 rounded-lg bg-yellow-50" role="alert"><span class="font-medium">Peringatan!</span> Jumlah pertemuan (${rppData.jumlahPertemuan}) lebih banyak dari jumlah materi pokok yang ditemukan (${rppData.tujuanPembelajaran.length}). Hanya ${meetingsToGenerate} RPP yang akan dibuat.</div>`;
       }
 
+      // Identifikasi Materi uses generic rppData, so only needs to be generated once
+      const identifikasiMateriHtml = await createIdentifikasiMateri(rppData, apiKeys);
+
       for (let i = 0; i < meetingsToGenerate; i++) {
         const currentTopicData = rppData.tujuanPembelajaran[i];
 
+        // Process these 2 at a time or sequentially to avoid hitting Gemini rate limits too fast
+        const desainPembelajaranHtml = await createDesainPembelajaran(rppData, currentTopicData, apiKeys);
+        const langkahPembelajaranHtml = await createLangkahPembelajaran(rppData, currentTopicData, apiKeys);
+        
         const [
-          identifikasiMateriHtml,
-          desainPembelajaranHtml,
-          langkahPembelajaranHtml,
           asesmenAwalHtml,
           asesmenProsesHtml,
           asesmenAkhirHtml
         ] = await Promise.all([
-          createIdentifikasiMateri(rppData, apiKeys),
-          createDesainPembelajaran(rppData, currentTopicData, apiKeys),
-          createLangkahPembelajaran(rppData, currentTopicData, apiKeys),
           createAsesmenAwal(rppData, currentTopicData, apiKeys),
           createAsesmenProses(rppData, currentTopicData, apiKeys),
           createAsesmenAkhir(rppData, currentTopicData, apiKeys)

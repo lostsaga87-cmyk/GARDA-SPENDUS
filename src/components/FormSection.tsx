@@ -9,9 +9,10 @@ interface FormSectionProps {
   onGenerateTP: () => void;
   onShowIdeaModal: () => void;
   appConfig: AppConfig;
+  userMapel?: string[];
 }
 
-export default function FormSection({ rppData, setRppData, validationError, onGenerateTP, onShowIdeaModal, appConfig }: FormSectionProps) {
+export default function FormSection({ rppData, setRppData, validationError, onGenerateTP, onShowIdeaModal, appConfig, userMapel = [] }: FormSectionProps) {
   const handleChange = (field: keyof RppData, value: any) => {
     setRppData(prev => ({ ...prev, [field]: value }));
   };
@@ -82,7 +83,20 @@ export default function FormSection({ rppData, setRppData, validationError, onGe
           </div>
           <div>
             <label className="block font-semibold text-gray-700 mb-2">c. Mata Pelajaran</label>
-            <input type="text" className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Contoh: Bahasa Indonesia" value={rppData.mapel} onChange={e => handleChange('mapel', e.target.value)} />
+            {userMapel && userMapel.length > 0 ? (
+              <select 
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                value={rppData.mapel} 
+                onChange={e => handleChange('mapel', e.target.value)}
+              >
+                <option value="">Pilih Mata Pelajaran</option>
+                {userMapel.map((m, idx) => (
+                  <option key={idx} value={m}>{m}</option>
+                ))}
+              </select>
+            ) : (
+              <input type="text" className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Contoh: Bahasa Indonesia" value={rppData.mapel} onChange={e => handleChange('mapel', e.target.value)} />
+            )}
           </div>
           <div>
             <label className="block font-semibold text-gray-700 mb-2">d. Tahun Pelajaran</label>
@@ -258,14 +272,8 @@ export default function FormSection({ rppData, setRppData, validationError, onGe
             Muat CP Fase {rppData.fase || '?'}
           </button>
         </div>
-        <label className="block font-semibold text-gray-700 mb-2">Masukkan kalimat Capaian Pembelajaran atau beberapa materi pokok dipisahkan koma (,)</label>
-        <textarea className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" rows={4} placeholder="Contoh: Mengenali berbagai model jaringan komputer, dan melakukan pengiriman data antarperangkat." value={rppData.cp_full_text} onChange={e => handleChange('cp_full_text', e.target.value)}></textarea>
-
-        {validationError && (
-          <div className="text-red-600 bg-red-50 border border-red-200 p-4 rounded-lg mt-4">
-            {validationError}
-          </div>
-        )}
+        <label className="block font-semibold text-gray-700 mb-2">Masukkan kalimat Capaian Pembelajaran atau beberapa materi pokok dipisahkan titik koma (;)</label>
+        <textarea className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" rows={4} placeholder="Contoh: Mengenali berbagai model jaringan komputer; Melakukan pengiriman data antarperangkat." value={rppData.cp_full_text} onChange={e => handleChange('cp_full_text', e.target.value)}></textarea>
         
         <div className="flex flex-wrap items-center gap-4 mt-6">
           <button onClick={onGenerateTP} className="px-6 py-3 rounded-lg font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors">Lanjutkan ke Tujuan Pembelajaran</button>

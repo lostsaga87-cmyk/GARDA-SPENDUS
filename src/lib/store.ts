@@ -185,7 +185,7 @@ export async function getUserHistory(userId: string) {
 export async function getActivityStats() {
   const { data, error } = await supabase
     .from('user_activities')
-    .select('activity_type, created_at');
+    .select('user_id, activity_type, created_at');
   if (error) {
     console.error('Error fetching stats:', error);
     return [];

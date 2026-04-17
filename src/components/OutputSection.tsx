@@ -59,24 +59,24 @@ export default function OutputSection({ rppData, setRppData, apiKeys, onBack }: 
         ]);
 
         finalHtml += `
-          <div class="rpp-section mb-12 page-break-after-always">
-            <h2 class="text-center font-bold text-[14pt] mb-6">RENCANA PERANGKAT PEMBELAJARAN</h2>
+          <div class="rpp-section mb-12 page-break-after-always" style="page-break-after: always; margin-bottom: 3rem;">
+            <h2 style="text-align: center; font-weight: bold; font-size: 14pt; margin-bottom: 1.5rem;">RENCANA PERANGKAT PEMBELAJARAN</h2>
             ${createHeaderTable(rppData)}
             
-            <h3 class="font-bold text-[12pt] mt-6 mb-2 border-b pb-1">Identifikasi</h3>
+            <h3 style="font-weight: bold; font-size: 12pt; margin-top: 1.5rem; margin-bottom: 0.5rem; border-bottom: 1px solid #000; padding-bottom: 0.25rem;">Identifikasi</h3>
             ${createIdentifikasiPesertaDidik(rppData)}
             ${identifikasiMateriHtml}
             ${createDimensiProfilLulusan(rppData)}
             ${createCapaianPembelajaran(rppData)}
 
-            <h3 class="font-bold text-[12pt] mt-6 mb-2 border-b pb-1">Desain Pembelajaran</h3>
+            <h3 style="font-weight: bold; font-size: 12pt; margin-top: 1.5rem; margin-bottom: 0.5rem; border-bottom: 1px solid #000; padding-bottom: 0.25rem;">Desain Pembelajaran</h3>
             ${desainPembelajaranHtml}
             ${createSumberBelajarHtml(rppData, currentTopicData)}
 
-            <h3 class="font-bold text-[12pt] mt-6 mb-2 border-b pb-1">Langkah-Langkah Pembelajaran</h3>
+            <h3 style="font-weight: bold; font-size: 12pt; margin-top: 1.5rem; margin-bottom: 0.5rem; border-bottom: 1px solid #000; padding-bottom: 0.25rem;">Langkah-Langkah Pembelajaran</h3>
             ${langkahPembelajaranHtml}
 
-            <h3 class="font-bold text-[12pt] mt-6 mb-2 border-b pb-1">Asesmen Pembelajaran</h3>
+            <h3 style="font-weight: bold; font-size: 12pt; margin-top: 1.5rem; margin-bottom: 0.5rem; border-bottom: 1px solid #000; padding-bottom: 0.25rem;">Asesmen Pembelajaran</h3>
             ${asesmenAwalHtml}
             ${asesmenProsesHtml}
             ${asesmenAkhirHtml}
@@ -95,52 +95,125 @@ export default function OutputSection({ rppData, setRppData, apiKeys, onBack }: 
   };
 
   const handlePrint = (contentId: string, title: string) => {
-    const content = document.getElementById(contentId)?.innerHTML || '';
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
+    const contentElement = document.getElementById(contentId);
+    if (!contentElement) return;
     
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>${title}</title>
-          <script src="https://cdn.tailwindcss.com"></script>
-          <style>
-            @page { size: A4 portrait; margin: 2cm 2cm 3cm 3cm; }
-            body { font-family: 'Times New Roman', Times, serif; font-size: 11pt; line-height: 1.5; }
-            table { width: 100%; border-collapse: collapse; margin-top: 1rem; margin-bottom: 1rem; font-size: 10pt; }
-            th, td { border: 1px solid #e5e7eb; padding: 0.5rem; text-align: left; vertical-align: top; }
-            th { background-color: #f9fafb; font-weight: bold; }
-            h2 { font-size: 14pt; font-weight: bold; text-align: center; margin-bottom: 1.5rem; }
-            h3 { font-size: 12pt; font-weight: bold; margin-top: 1.5rem; margin-bottom: 0.5rem; border-bottom: 1px solid #ccc; padding-bottom: 0.25rem; }
-            h4, h5 { font-size: 11pt; font-weight: bold; margin-top: 1rem; margin-bottom: 0.5rem; }
-            ul, ol { margin-left: 1.5rem; margin-bottom: 1rem; }
-            p { margin-bottom: 0.5rem; text-align: justify; }
-            .page-break-after-always { page-break-after: always; }
-          </style>
-        </head>
-        <body>${content}</body>
-      </html>
-    `);
-    printWindow.document.close();
-    setTimeout(() => {
-      printWindow.focus();
-      printWindow.print();
-    }, 500);
+    // In an iframe (like AI Studio preview), window.open might be blocked or have issues printing.
+    // Instead, we will inject an iframe, write to it, and print from it.
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document;
+    if (doc) {
+      doc.open();
+      doc.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>${title}</title>
+            <style>
+              @page { size: A4 portrait; margin: 20mm; }
+              body { font-family: 'Times New Roman', Times, serif; font-size: 11pt; line-height: 1.5; color: black; background: white; margin: 0; padding: 0; }
+              * { box-sizing: border-box; }
+              table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 11pt; page-break-inside: auto; border: none; }
+              tr { page-break-inside: avoid; page-break-after: auto; }
+              th, td { border: 1px solid #000; padding: 0.5rem; text-align: left; vertical-align: top; }
+              th { font-weight: bold; }
+              h2 { font-size: 14pt; font-weight: bold; text-align: center; margin-bottom: 1.5rem; }
+              h3 { font-size: 12pt; font-weight: bold; margin-top: 1.5rem; margin-bottom: 0.5rem; border-bottom: 1px solid #000; padding-bottom: 0.25rem; }
+              h4, h5 { font-size: 11pt; font-weight: bold; margin-top: 1rem; margin-bottom: 0.5rem; }
+              ul, ol { margin-left: 1.5rem; margin-bottom: 1rem; }
+              p { margin-bottom: 0.5rem; text-align: justify; }
+              .page-break-after-always { page-break-after: always; }
+              /* Force specific table elements to not have borders if requested */
+              table.no-border td { border: none !important; }
+            </style>
+          </head>
+          <body>${contentElement.innerHTML}</body>
+        </html>
+      `);
+      doc.close();
+
+      setTimeout(() => {
+        iframe.contentWindow?.focus();
+        if (iframe.contentWindow) {
+          iframe.contentWindow.onafterprint = () => {
+            document.body.removeChild(iframe);
+          };
+          iframe.contentWindow.print();
+          // Fallback if onafterprint doesn't fire
+          setTimeout(() => {
+            if (document.body.contains(iframe)) {
+              document.body.removeChild(iframe);
+            }
+          }, 60000); // 1 minute fallback
+        }
+      }, 500);
+    }
   };
 
   const handleDownloadWord = (contentId: string, filename: string) => {
     const content = document.getElementById(contentId)?.innerHTML || '';
-    const header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Export HTML To Doc</title></head><body>";
-    const footer = "</body></html>";
-    const sourceHTML = header + content + footer;
     
-    const source = 'data:application/vnd.ms-word;charset=utf-8,' + encodeURIComponent(sourceHTML);
-    const fileDownload = document.createElement("a");
-    document.body.appendChild(fileDownload);
-    fileDownload.href = source;
-    fileDownload.download = `${filename}.doc`;
-    fileDownload.click();
-    document.body.removeChild(fileDownload);
+    // Create a complete HTML document that Word can understand better
+    const wordDocument = `
+      <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+      <head>
+        <meta charset='utf-8'>
+        <title>Export HTML To Doc</title>
+        <style>
+          /* Basic Word Styles */
+          @page WordSection1 {
+              size: 21cm 29.7cm; /* A4 */
+              margin: 2cm 2cm 2cm 2cm;
+          }
+          div.WordSection1 { page: WordSection1; }
+          body { font-family: "Times New Roman", Times, serif; font-size: 11pt; line-height: 1.5; color: windowtext; }
+          table { border-collapse: collapse; width: 100%; mso-table-layout-alt: fixed; margin: 10px 0; }
+          td, th { border: 1px solid windowtext; padding: 5px; vertical-align: top; }
+          h2 { font-size: 14pt; font-weight: bold; text-align: center; }
+          h3 { font-size: 12pt; font-weight: bold; border-bottom: 1px solid windowtext; }
+          h4, h5 { font-size: 11pt; font-weight: bold; }
+          p { text-align: justify; margin: 0 0 10px 0; }
+          .page-break-after-always { mso-special-character: line-break; page-break-after: always; }
+        </style>
+      </head>
+      <body>
+        <div class="WordSection1">
+          ${content}
+        </div>
+      </body>
+      </html>
+    `;
+    
+    // Use Blob for better file downloading
+    const blob = new Blob(['\ufeff', wordDocument], {
+        type: 'application/msword;charset=utf-8'
+    });
+    
+    // Create a link to download it
+    const downloadLink = document.createElement("a");
+    document.body.appendChild(downloadLink);
+    
+    if ((navigator as any).msSaveOrOpenBlob) {
+        (navigator as any).msSaveOrOpenBlob(blob, `${filename}.doc`); // IE10-11
+    } else {
+        const url = URL.createObjectURL(blob);
+        downloadLink.href = url;
+        downloadLink.download = `${filename}.doc`;
+        downloadLink.click();
+        
+        setTimeout(() => {
+            document.body.removeChild(downloadLink);
+            window.URL.revokeObjectURL(url);
+        }, 100);
+    }
   };
 
   return (
@@ -393,7 +466,7 @@ function createIdentifikasiPesertaDidik(data: RppData) {
 }
 
 async function createIdentifikasiMateri(data: RppData, apiKeys: string[]) {
-  const prompt = `Anda adalah seorang ahli kurikulum. Berdasarkan Capaian Pembelajaran berikut: '${data.cp_full_text}' untuk mata pelajaran '${data.mapel}' kelas '${data.kelasSemester}', buatlah analisis materi pelajaran yang mendalam dalam format JSON. JSON harus memiliki kunci berikut: 'jenis_pengetahuan' (dengan sub-kunci 'konseptual', 'procedural', 'metakognitif'), 'relevansi_kehidupan_nyata', 'tingkat_kesulitan' (jelaskan alasannya), 'struktur_materi', dan 'integrasi_nilai_karakter' (sebutkan 5 nilai karakter dan jelaskan integrasinya).`;
+  const prompt = `Anda adalah seorang ahli kurikulum. Berdasarkan Capaian Pembelajaran berikut: '${data.cp_full_text}' untuk mata pelajaran '${data.mapel}' kelas '${data.kelasSemester}'. Pertimbangkan juga Karakteristik siswa: ${data.karakteristik}, Minat: ${data.minat}, Motivasi: ${data.motivasi}, Prestasi: ${data.prestasi}, Lingkungan: ${data.lingkungan}. Buatlah analisis materi pelajaran yang mendalam dalam format JSON. JSON harus memiliki kunci berikut: 'jenis_pengetahuan' (dengan sub-kunci 'konseptual', 'procedural', 'metakognitif'), 'relevansi_kehidupan_nyata', 'tingkat_kesulitan' (jelaskan alasannya), 'struktur_materi', dan 'integrasi_nilai_karakter' (sebutkan 5 nilai karakter dan jelaskan integrasinya).`;
   const schema = {
     type: "OBJECT",
     properties: {
@@ -407,39 +480,40 @@ async function createIdentifikasiMateri(data: RppData, apiKeys: string[]) {
   };
   const result = await makeApiCall(prompt, apiKeys, schema);
   return `
-    <h4 class="font-bold text-[11pt] mt-4 mb-2">Materi Pelajaran:</h4>
-    <ol class="list-decimal pl-6 mb-4 space-y-2">
-      <li><strong>Jenis Pengetahuan yang akan Dicapai:</strong>
-        <ul class="list-disc pl-6 mt-1 space-y-1">
-          <li><strong>Konseptual:</strong> ${result?.jenis_pengetahuan?.konseptual || ''}</li>
-          <li><strong>Prosedural:</strong> ${result?.jenis_pengetahuan?.prosedural || ''}</li>
-          <li><strong>Metakognitif:</strong> ${result?.jenis_pengetahuan?.metakognitif || ''}</li>
+    <h4 style="font-weight: bold; font-size: 11pt; margin-top: 1rem; margin-bottom: 0.5rem;">Materi Pelajaran:</h4>
+    <ol style="margin-left: 1.5rem; margin-bottom: 1rem; list-style-type: decimal;">
+      <li><strong style="font-weight:bold;">Jenis Pengetahuan yang akan Dicapai:</strong>
+        <ul style="margin-left: 1.5rem; margin-top: 0.25rem; margin-bottom: 0.25rem; list-style-type: disc;">
+          <li><strong style="font-weight:bold;">Konseptual:</strong> ${result?.jenis_pengetahuan?.konseptual || ''}</li>
+          <li><strong style="font-weight:bold;">Prosedural:</strong> ${result?.jenis_pengetahuan?.prosedural || ''}</li>
+          <li><strong style="font-weight:bold;">Metakognitif:</strong> ${result?.jenis_pengetahuan?.metakognitif || ''}</li>
         </ul>
       </li>
-      <li><strong>Relevansi dengan Kehidupan Nyata Peserta Didik:</strong><p class="mt-1">${result?.relevansi_kehidupan_nyata || ''}</p></li>
-      <li><strong>Tingkat Kesulitan:</strong><p class="mt-1">${result?.tingkat_kesulitan || ''}</p></li>
-      <li><strong>Struktur Materi:</strong><p class="mt-1">${result?.struktur_materi || ''}</p></li>
-      <li><strong>Integrasi Nilai dan Karakter:</strong><p class="mt-1">${result?.integrasi_nilai_karakter || ''}</p></li>
+      <li><strong style="font-weight:bold;">Relevansi dengan Kehidupan Nyata Peserta Didik:</strong><p style="margin-top: 0.25rem; margin-bottom: 0.25rem;">${result?.relevansi_kehidupan_nyata || ''}</p></li>
+      <li><strong style="font-weight:bold;">Tingkat Kesulitan:</strong><p style="margin-top: 0.25rem; margin-bottom: 0.25rem;">${result?.tingkat_kesulitan || ''}</p></li>
+      <li><strong style="font-weight:bold;">Struktur Materi:</strong><p style="margin-top: 0.25rem; margin-bottom: 0.25rem;">${result?.struktur_materi || ''}</p></li>
+      <li><strong style="font-weight:bold;">Integrasi Nilai dan Karakter:</strong><p style="margin-top: 0.25rem; margin-bottom: 0.25rem;">${result?.integrasi_nilai_karakter || ''}</p></li>
     </ol>`;
 }
 
 function createDimensiProfilLulusan(data: RppData) {
   const allProfils = ["Keimanan dan Ketakwaan terhadap Tuhan YME", "Kewargaan", "Penalaran Kritis", "Kreativitas", "Kolaborasi", "Kemandirian", "Kesehatan", "Komunikasi"];
-  let html = `<h4 class="font-bold text-[11pt] mt-4 mb-2">Dimensi Profil Lulusan:</h4><p class="mb-2">Pilihlah dimensi profil lulusan yang akan dicapai dalam pembelajaran</p><div class="grid grid-cols-2 gap-2 mb-4">`;
+  let html = `<h4 style="font-weight: bold; font-size: 11pt; margin-top: 1rem; margin-bottom: 0.5rem;">Dimensi Profil Lulusan:</h4><p style="margin-bottom: 0.5rem;">Pilihlah dimensi profil lulusan yang akan dicapai dalam pembelajaran</p><table style="width: 100%; margin-bottom: 1rem; border: none;"><tr>`;
   allProfils.forEach((profil, index) => {
     const isChecked = data.profilLulusan.includes(profil);
-    html += `<div>${isChecked ? '☑' : '☐'} DPL${index+1} ${profil}</div>`;
+    html += `<td style="border: none; padding: 0.25rem;">${isChecked ? '☑' : '☐'} DPL${index+1} ${profil}</td>`;
+    if ((index + 1) % 2 === 0 && index < allProfils.length - 1) html += `</tr><tr>`;
   });
-  html += `</div>`;
+  html += `</tr></table>`;
   return html;
 }
 
 function createCapaianPembelajaran(data: RppData) {
-  return `<h4 class="font-bold text-[11pt] mt-4 mb-2">Capaian Pembelajaran:</h4><p class="mb-4">${data.cp_full_text}</p>`;
+  return `<h4 style="font-weight: bold; font-size: 11pt; margin-top: 1rem; margin-bottom: 0.5rem;">Capaian Pembelajaran:</h4><p style="margin-bottom: 1rem; text-align: justify;">${data.cp_full_text}</p>`;
 }
 
 async function createDesainPembelajaran(data: RppData, topicData: any, apiKeys: string[]) {
-  const prompt = `Anda adalah seorang desainer pembelajaran. Untuk materi pokok: "${topicData.topic}", buatlah detail desain pembelajaran dalam format JSON. JSON harus memiliki kunci: 'lintas_disiplin' (array string nama mapel), 'topik_pembelajaran' (array string topik spesifik turunan dari materi pokok), dan 'praktik_pedagogis' (jelaskan 3 praktik yang sesuai). Gunakan juga data lingkungan belajar ini: Fisik='${data.lingkunganFisik}', Virtual='${data.lingkunganVirtual}', Budaya='${data.budayaBelajar}' untuk melengkapi penjelasan Anda.`;
+  const prompt = `Anda adalah seorang desainer pembelajaran. Untuk materi pokok: "${topicData.topic}", buatlah detail desain pembelajaran dalam format JSON. JSON harus memiliki kunci: 'lintas_disiplin' (array string nama mapel), 'topik_pembelajaran' (array string topik spesifik turunan dari materi pokok), dan 'praktik_pedagogis' (jelaskan 3 praktik yang sesuai). Gunakan juga data karakteristik siswa (${data.karakteristik}, minat ${data.minat}, motivasi ${data.motivasi}, prestasi ${data.prestasi}) dan lingkungan belajar (Fisik='${data.lingkunganFisik}', Virtual='${data.lingkunganVirtual}', Budaya='${data.budayaBelajar}') untuk merancang praktik pedagogis yang inklusif dan efektif bagi mereka.`;
   const schema = {
     type: "OBJECT",
     properties: {
@@ -450,21 +524,21 @@ async function createDesainPembelajaran(data: RppData, topicData: any, apiKeys: 
     required: ["lintas_disiplin", "topik_pembelajaran", "praktik_pedagogis"]
   };
   const result = await makeApiCall(prompt, apiKeys, schema);
-  const tpsForThisMeeting = `<h5 class="font-bold mt-3 mb-1">Tujuan Pembelajaran Pertemuan Ini:</h5><ul class="list-disc pl-6 mb-3">${topicData.tps.map((tp:any) => `<li>${tp.text}</li>`).join('')}</ul>`;
+  const tpsForThisMeeting = `<h5 style="font-weight: bold; font-size: 11pt; margin-top: 0.75rem; margin-bottom: 0.25rem;">Tujuan Pembelajaran Pertemuan Ini:</h5><ul style="margin-left: 1.5rem; margin-bottom: 0.75rem; list-style-type: disc;">${topicData.tps.map((tp:any) => `<li>${tp.text}</li>`).join('')}</ul>`;
 
   return `
-    <h4 class="font-bold text-[11pt] mt-4 mb-2">Lintas Disiplin Ilmu:</h4><ul class="list-disc pl-6 mb-3">${(result?.lintas_disiplin || []).map((item:string) => `<li>${item}</li>`).join('')}</ul>
+    <h4 style="font-weight: bold; font-size: 11pt; margin-top: 1rem; margin-bottom: 0.5rem;">Lintas Disiplin Ilmu:</h4><ul style="margin-left: 1.5rem; margin-bottom: 0.75rem; list-style-type: disc;">${(result?.lintas_disiplin || []).map((item:string) => `<li>${item}</li>`).join('')}</ul>
     ${tpsForThisMeeting}
-    <h4 class="font-bold text-[11pt] mt-4 mb-2">Topik Pembelajaran:</h4><ul class="list-disc pl-6 mb-3">${(result?.topik_pembelajaran || []).map((item:string) => `<li>${item}</li>`).join('')}</ul>
-    <h4 class="font-bold text-[11pt] mt-4 mb-2">Praktik Pedagogis:</h4><p class="mb-3">${result?.praktik_pedagogis || ''}</p>
-    <h4 class="font-bold text-[11pt] mt-4 mb-2">Kemitraan Pembelajaran:</h4><p class="mb-3">${data.kemitraan}</p>
-    <h4 class="font-bold text-[11pt] mt-4 mb-2">Lingkungan Pembelajaran:</h4>
-    <ul class="list-disc pl-6 mb-3">
-      <li><strong>Ruang Fisik:</strong> ${data.lingkunganFisik}</li>
-      <li><strong>Ruang Virtual:</strong> ${data.lingkunganVirtual}</li>
-      <li><strong>Budaya Belajar:</strong> ${data.budayaBelajar}</li>
+    <h4 style="font-weight: bold; font-size: 11pt; margin-top: 1rem; margin-bottom: 0.5rem;">Topik Pembelajaran:</h4><ul style="margin-left: 1.5rem; margin-bottom: 0.75rem; list-style-type: disc;">${(result?.topik_pembelajaran || []).map((item:string) => `<li>${item}</li>`).join('')}</ul>
+    <h4 style="font-weight: bold; font-size: 11pt; margin-top: 1rem; margin-bottom: 0.5rem;">Praktik Pedagogis:</h4><p style="margin-bottom: 0.75rem;">${result?.praktik_pedagogis || ''}</p>
+    <h4 style="font-weight: bold; font-size: 11pt; margin-top: 1rem; margin-bottom: 0.5rem;">Kemitraan Pembelajaran:</h4><p style="margin-bottom: 0.75rem;">${data.kemitraan}</p>
+    <h4 style="font-weight: bold; font-size: 11pt; margin-top: 1rem; margin-bottom: 0.5rem;">Lingkungan Pembelajaran:</h4>
+    <ul style="margin-left: 1.5rem; margin-bottom: 0.75rem; list-style-type: disc;">
+      <li><strong style="font-weight:bold;">Ruang Fisik:</strong> ${data.lingkunganFisik}</li>
+      <li><strong style="font-weight:bold;">Ruang Virtual:</strong> ${data.lingkunganVirtual}</li>
+      <li><strong style="font-weight:bold;">Budaya Belajar:</strong> ${data.budayaBelajar}</li>
     </ul>
-    <h4 class="font-bold text-[11pt] mt-4 mb-2">Pemanfaatan Digital:</h4><p class="mb-4">${data.digitalPerencanaan}, ${data.digitalPelaksanaan}, ${data.digitalAsesmen}</p>`;
+    <h4 style="font-weight: bold; font-size: 11pt; margin-top: 1rem; margin-bottom: 0.5rem;">Pemanfaatan Digital:</h4><p style="margin-bottom: 1rem;">${data.digitalPerencanaan}, ${data.digitalPelaksanaan}, ${data.digitalAsesmen}</p>`;
 }
 
 function createSumberBelajarHtml(data: RppData, topicData: any) {
@@ -479,12 +553,12 @@ function createSumberBelajarHtml(data: RppData, topicData: any) {
     else if (sumber === 'Wordwall') { link = `https://wordwall.net/search?query=${encodedTopic}`; linkText = `Cari aktivitas terkait "${topicData.topic}" di Wordwall`; }
     return `<li>${sumber}: <a href="${link}" target="_blank" style="color: blue; text-decoration: underline;" rel="noopener noreferrer">${linkText}</a></li>`;
   }).join('');
-  return `<h4 class="font-bold text-[11pt] mt-4 mb-2">Sumber Belajar:</h4><ul class="list-disc pl-6 mb-4">${listItems}</ul>`;
+  return `<h4 style="font-weight: bold; font-size: 11pt; margin-top: 1rem; margin-bottom: 0.5rem;">Sumber Belajar:</h4><ul style="margin-left: 1.5rem; margin-bottom: 1rem; list-style-type: disc;">${listItems}</ul>`;
 }
 
 async function createLangkahPembelajaran(data: RppData, topicData: any, apiKeys: string[]) {
   const tpsJoined = topicData.tps.map((t:any) => t.text).join(', ');
-  const prompt = `Anda adalah seorang guru inovatif. Rancang langkah-langkah pembelajaran dalam format tabel untuk sebuah pertemuan. Model Pembelajaran yang harus digunakan adalah: ${data.modelPembelajaran}. Bagian 'inti' dari pembelajaran HARUS secara eksplisit mengikuti sintaks/langkah-langkah dari model ${data.modelPembelajaran}. Topik pertemuan ini adalah: '${topicData.topic}', dengan Tujuan Pembelajaran: '${tpsJoined}'. Format jawaban dalam JSON dengan kunci: 'awal', 'inti', dan 'penutup'. Masing-masing kunci berisi array objek. Setiap objek mewakili satu baris tabel dan harus memiliki kunci 'tahap' (untuk tahap inti, gunakan nama sintaks modelnya), 'prinsip' (pilih dari 'Berkesadaran', 'Bermakna', 'Menggembirakan'), dan 'deskripsi' (jelaskan aktivitas guru dan siswa secara rinci).`;
+  const prompt = `Anda adalah seorang guru inovatif. Rancang langkah-langkah pembelajaran dalam format tabel untuk sebuah pertemuan. Model Pembelajaran yang harus digunakan adalah: ${data.modelPembelajaran}. Bagian 'inti' dari pembelajaran HARUS secara eksplisit mengikuti sintaks/langkah-langkah dari model ${data.modelPembelajaran}. Topik pertemuan ini adalah: '${topicData.topic}', dengan Tujuan Pembelajaran: '${tpsJoined}'. Karakteristik Siswa: ${data.karakteristik}, Minat: ${data.minat}. Rancang aktivitas yang sesuai dengan kondisi siswa tersebut. Format jawaban dalam JSON dengan kunci: 'awal', 'inti', dan 'penutup'. Masing-masing kunci berisi array objek. Setiap objek mewakili satu baris tabel dan harus memiliki kunci 'tahap' (untuk tahap inti, gunakan nama sintaks modelnya), 'prinsip' (pilih dari 'Berkesadaran', 'Bermakna', 'Menggembirakan'), dan 'deskripsi' (jelaskan aktivitas guru dan siswa secara rinci).`;
   const schema = {
     type: "OBJECT",
     properties: {
@@ -498,12 +572,12 @@ async function createLangkahPembelajaran(data: RppData, topicData: any, apiKeys:
 
   const renderTableSection = (title: string, steps: any[]) => {
     if (!steps || steps.length === 0) return '';
-    let tableRows = steps.map(step => `<tr><td class="border border-gray-300 p-2 w-1/3"><strong>${step.tahap}</strong><br/><span class="italic text-sm">(${step.prinsip})</span></td><td class="border border-gray-300 p-2">${step.deskripsi}</td></tr>`).join('');
-    return `<h4 class="font-bold text-[11pt] mt-4 mb-2">${title}</h4><table class="w-full border-collapse mb-4"><tbody>${tableRows}</tbody></table>`;
+    let tableRows = steps.map(step => `<tr><td style="border: 1px solid #000; padding: 0.5rem; width: 33.333%; vertical-align: top;"><strong style="font-weight:bold;">${step.tahap}</strong><br/><span style="font-style: italic; font-size: 10pt;">(${step.prinsip})</span></td><td style="border: 1px solid #000; padding: 0.5rem; vertical-align: top;">${step.deskripsi}</td></tr>`).join('');
+    return `<h4 style="font-weight: bold; font-size: 11pt; margin-top: 1rem; margin-bottom: 0.5rem;">${title}</h4><table style="width: 100%; border-collapse: collapse; margin-bottom: 1rem;"><tbody>${tableRows}</tbody></table>`;
   };
 
   return renderTableSection('AWAL', result.awal) + 
-         `<p class="mb-2">Pada tahap ini, siswa aktif terlibat dalam pengalaman belajar memahami, mengaplikasi, dan merefleksi. Guru menerapkan prinsip pembelajaran berkesadaran, bermakna, menyenangkan untuk mencapai tujuan pembelajaran dengan model ${data.modelPembelajaran}.</p>` +
+         `<p style="margin-bottom: 0.5rem;">Pada tahap ini, siswa aktif terlibat dalam pengalaman belajar memahami, mengaplikasi, dan merefleksi. Guru menerapkan prinsip pembelajaran berkesadaran, bermakna, menyenangkan untuk mencapai tujuan pembelajaran dengan model ${data.modelPembelajaran}.</p>` +
          renderTableSection('INTI (Pengalaman Belajar)', result.inti) + 
          renderTableSection('PENUTUP', result.penutup);
 }
@@ -523,15 +597,15 @@ async function createAsesmenAwal(data: RppData, topicData: any, apiKeys: string[
   };
   const result = await makeApiCall(prompt, apiKeys, schema);
   return `
-    <h4 class="font-bold text-[11pt] mt-4 mb-2">Asesmen pada Awal Pembelajaran:</h4>
-    <p class="mb-1"><strong>Tujuan:</strong> ${result.tujuan}</p>
-    <p class="mb-3"><strong>Metode:</strong> ${result.metode}</p>
-    <h5 class="font-bold mt-2 mb-1">${result.bagian_a.deskripsi}</h5>
-    <ol class="list-decimal pl-6 mb-3">${result.bagian_a.pertanyaan.map((q:string) => `<li>${q}</li>`).join('')}</ol>
-    <h5 class="font-bold mt-2 mb-1">${result.bagian_b.deskripsi}</h5>
-    <ol class="list-decimal pl-6 mb-3">${result.bagian_b.pertanyaan.map((q:string) => `<li>${q}</li>`).join('')}</ol>
-    <h5 class="font-bold mt-2 mb-1">Cara Menggunakan Asesmen Diagnostik Ini:</h5>
-    <p class="mb-4">${result.cara_penggunaan.replace(/\\n/g, '<br>')}</p>`;
+    <h4 style="font-weight: bold; font-size: 11pt; margin-top: 1rem; margin-bottom: 0.5rem;">Asesmen pada Awal Pembelajaran:</h4>
+    <p style="margin-bottom: 0.25rem;"><strong style="font-weight:bold;">Tujuan:</strong> ${result.tujuan}</p>
+    <p style="margin-bottom: 0.75rem;"><strong style="font-weight:bold;">Metode:</strong> ${result.metode}</p>
+    <h5 style="font-weight: bold; font-size: 11pt; margin-top: 0.5rem; margin-bottom: 0.25rem;">${result.bagian_a.deskripsi}</h5>
+    <ol style="margin-left: 1.5rem; margin-bottom: 0.75rem; list-style-type: decimal;">${result.bagian_a.pertanyaan.map((q:string) => `<li>${q}</li>`).join('')}</ol>
+    <h5 style="font-weight: bold; font-size: 11pt; margin-top: 0.5rem; margin-bottom: 0.25rem;">${result.bagian_b.deskripsi}</h5>
+    <ol style="margin-left: 1.5rem; margin-bottom: 0.75rem; list-style-type: decimal;">${result.bagian_b.pertanyaan.map((q:string) => `<li>${q}</li>`).join('')}</ol>
+    <h5 style="font-weight: bold; font-size: 11pt; margin-top: 0.5rem; margin-bottom: 0.25rem;">Cara Menggunakan Asesmen Diagnostik Ini:</h5>
+    <p style="margin-bottom: 1rem;">${result.cara_penggunaan.replace(/\\n/g, '<br>')}</p>`;
 }
 
 async function createAsesmenProses(data: RppData, topicData: any, apiKeys: string[]) {
@@ -547,25 +621,25 @@ async function createAsesmenProses(data: RppData, topicData: any, apiKeys: strin
   };
   const parsedResult = await makeApiCall(prompt, apiKeys, schema);
 
-  let observasiHtml = `<h5 class="font-bold mt-4 mb-2">1. Observasi (Assessment as Learning & For Learning)</h5>
-    <p class="mb-1"><b>Fokus Observasi:</b> ${parsedResult?.observasi?.fokus_observasi || ''}</p>
-    <p class="mb-1"><b>Indikator yang Diobservasi:</b></p><ul class="list-disc pl-6 mb-2">${(parsedResult?.observasi?.indikator || []).map((i:string) => `<li>${i}</li>`).join('')}</ul>
-    <p class="mb-1"><b>Skala Penilaian:</b></p><ul class="list-disc pl-6 mb-4">${(parsedResult?.observasi?.skala_penilaian || []).map((s:any) => `<li><b>${s.skala}:</b> ${s.deskripsi}</li>`).join('')}</ul>`;
+  let observasiHtml = `<h5 style="font-weight: bold; font-size: 11pt; margin-top: 1rem; margin-bottom: 0.5rem;">1. Observasi (Assessment as Learning & For Learning)</h5>
+    <p style="margin-bottom: 0.25rem;"><strong style="font-weight:bold;">Fokus Observasi:</strong> ${parsedResult?.observasi?.fokus_observasi || ''}</p>
+    <p style="margin-bottom: 0.25rem;"><strong style="font-weight:bold;">Indikator yang Diobservasi:</strong></p><ul style="margin-left: 1.5rem; margin-bottom: 0.5rem; list-style-type: disc;">${(parsedResult?.observasi?.indikator || []).map((i:string) => `<li>${i}</li>`).join('')}</ul>
+    <p style="margin-bottom: 0.25rem;"><strong style="font-weight:bold;">Skala Penilaian:</strong></p><ul style="margin-left: 1.5rem; margin-bottom: 1rem; list-style-type: disc;">${(parsedResult?.observasi?.skala_penilaian || []).map((s:any) => `<li><strong style="font-weight:bold;">${s.skala}:</strong> ${s.deskripsi}</li>`).join('')}</ul>`;
 
-  let kinerjaHtml = `<h5 class="font-bold mt-4 mb-2">2. Penilaian Kinerja (Assessment as Learning & For Learning)</h5>
-    <p class="mb-1"><b>Fokus Penilaian:</b> ${parsedResult?.penilaian_kinerja?.fokus_penilaian || ''}</p>
-    <p class="mb-2"><b>Contoh Tugas Kinerja:</b> ${parsedResult?.penilaian_kinerja?.contoh_tugas || ''}</p>
-    <table class="w-full border-collapse mb-4"><thead><tr class="bg-gray-50"><th class="border border-gray-300 p-2">Aspek Penilaian</th><th class="border border-gray-300 p-2">Sangat Baik (4)</th><th class="border border-gray-300 p-2">Baik (3)</th><th class="border border-gray-300 p-2">Cukup (2)</th><th class="border border-gray-300 p-2">Kurang (1)</th></tr></thead><tbody>`;
+  let kinerjaHtml = `<h5 style="font-weight: bold; font-size: 11pt; margin-top: 1rem; margin-bottom: 0.5rem;">2. Penilaian Kinerja (Assessment as Learning & For Learning)</h5>
+    <p style="margin-bottom: 0.25rem;"><strong style="font-weight:bold;">Fokus Penilaian:</strong> ${parsedResult?.penilaian_kinerja?.fokus_penilaian || ''}</p>
+    <p style="margin-bottom: 0.5rem;"><strong style="font-weight:bold;">Contoh Tugas Kinerja:</strong> ${parsedResult?.penilaian_kinerja?.contoh_tugas || ''}</p>
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 1rem;"><thead><tr style="background-color: #f9fafb;"><th style="border: 1px solid #000; padding: 0.5rem; font-weight: bold;">Aspek Penilaian</th><th style="border: 1px solid #000; padding: 0.5rem; font-weight: bold;">Sangat Baik (4)</th><th style="border: 1px solid #000; padding: 0.5rem; font-weight: bold;">Baik (3)</th><th style="border: 1px solid #000; padding: 0.5rem; font-weight: bold;">Cukup (2)</th><th style="border: 1px solid #000; padding: 0.5rem; font-weight: bold;">Kurang (1)</th></tr></thead><tbody>`;
   (parsedResult?.penilaian_kinerja?.rubrik || []).forEach((r:any) => {
-    kinerjaHtml += `<tr><td class="border border-gray-300 p-2">${r.aspek}</td><td class="border border-gray-300 p-2">${r.sangat_baik}</td><td class="border border-gray-300 p-2">${r.baik}</td><td class="border border-gray-300 p-2">${r.cukup}</td><td class="border border-gray-300 p-2">${r.kurang}</td></tr>`;
+    kinerjaHtml += `<tr><td style="border: 1px solid #000; padding: 0.5rem; vertical-align: top;">${r.aspek}</td><td style="border: 1px solid #000; padding: 0.5rem; vertical-align: top;">${r.sangat_baik}</td><td style="border: 1px solid #000; padding: 0.5rem; vertical-align: top;">${r.baik}</td><td style="border: 1px solid #000; padding: 0.5rem; vertical-align: top;">${r.cukup}</td><td style="border: 1px solid #000; padding: 0.5rem; vertical-align: top;">${r.kurang}</td></tr>`;
   });
   kinerjaHtml += `</tbody></table>`;
 
-  let peerHtml = `<h5 class="font-bold mt-4 mb-2">3. Peer Assessment (Assessment as Learning)</h5>
-    <p class="mb-1"><b>Contoh Pertanyaan/Kriteria untuk Peer Assessment:</b></p>
-    <ol class="list-decimal pl-6 mb-4">${(parsedResult?.peer_assessment?.contoh_pertanyaan || []).map((p:string) => `<li>${p}</li>`).join('')}</ol>`;
+  let peerHtml = `<h5 style="font-weight: bold; font-size: 11pt; margin-top: 1rem; margin-bottom: 0.5rem;">3. Peer Assessment (Assessment as Learning)</h5>
+    <p style="margin-bottom: 0.25rem;"><strong style="font-weight:bold;">Contoh Pertanyaan/Kriteria untuk Peer Assessment:</strong></p>
+    <ol style="margin-left: 1.5rem; margin-bottom: 1rem; list-style-type: decimal;">${(parsedResult?.peer_assessment?.contoh_pertanyaan || []).map((p:string) => `<li>${p}</li>`).join('')}</ol>`;
 
-  return `<h4 class="font-bold text-[11pt] mt-4 mb-2">Asesmen pada Proses Pembelajaran:</h4>${observasiHtml}${kinerjaHtml}${peerHtml}`;
+  return `<h4 style="font-weight: bold; font-size: 11pt; margin-top: 1rem; margin-bottom: 0.5rem;">Asesmen pada Proses Pembelajaran:</h4>${observasiHtml}${kinerjaHtml}${peerHtml}`;
 }
 
 async function createAsesmenAkhir(data: RppData, topicData: any, apiKeys: string[]) {
@@ -580,25 +654,25 @@ async function createAsesmenAkhir(data: RppData, topicData: any, apiKeys: string
   };
   const parsedResult = await makeApiCall(prompt, apiKeys, schema);
 
-  let proyekHtml = `<h5 class="font-bold mt-4 mb-2">1. Penilaian Proyek (Assessment of Learning)</h5>
-    <p class="mb-1"><b>Fokus Penilaian:</b> ${parsedResult?.penilaian_proyek?.fokus_penilaian || ''}</p>
-    <p class="mb-2"><b>Contoh Proyek:</b> ${parsedResult?.penilaian_proyek?.contoh_proyek || ''}</p>
-    <table class="w-full border-collapse mb-4"><thead><tr class="bg-gray-50"><th class="border border-gray-300 p-2">Aspek Penilaian</th><th class="border border-gray-300 p-2">Sangat Baik (4)</th><th class="border border-gray-300 p-2">Baik (3)</th><th class="border border-gray-300 p-2">Cukup (2)</th><th class="border border-gray-300 p-2">Kurang (1)</th></tr></thead><tbody>`;
+  let proyekHtml = `<h5 style="font-weight: bold; font-size: 11pt; margin-top: 1rem; margin-bottom: 0.5rem;">1. Penilaian Proyek (Assessment of Learning)</h5>
+    <p style="margin-bottom: 0.25rem;"><strong style="font-weight:bold;">Fokus Penilaian:</strong> ${parsedResult?.penilaian_proyek?.fokus_penilaian || ''}</p>
+    <p style="margin-bottom: 0.5rem;"><strong style="font-weight:bold;">Contoh Proyek:</strong> ${parsedResult?.penilaian_proyek?.contoh_proyek || ''}</p>
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 1rem;"><thead><tr style="background-color: #f9fafb;"><th style="border: 1px solid #000; padding: 0.5rem; font-weight: bold;">Aspek Penilaian</th><th style="border: 1px solid #000; padding: 0.5rem; font-weight: bold;">Sangat Baik (4)</th><th style="border: 1px solid #000; padding: 0.5rem; font-weight: bold;">Baik (3)</th><th style="border: 1px solid #000; padding: 0.5rem; font-weight: bold;">Cukup (2)</th><th style="border: 1px solid #000; padding: 0.5rem; font-weight: bold;">Kurang (1)</th></tr></thead><tbody>`;
   (parsedResult?.penilaian_proyek?.rubrik || []).forEach((r:any) => {
-    proyekHtml += `<tr><td class="border border-gray-300 p-2">${r.aspek}</td><td class="border border-gray-300 p-2">${r.sangat_baik}</td><td class="border border-gray-300 p-2">${r.baik}</td><td class="border border-gray-300 p-2">${r.cukup}</td><td class="border border-gray-300 p-2">${r.kurang}</td></tr>`;
+    proyekHtml += `<tr><td style="border: 1px solid #000; padding: 0.5rem; vertical-align: top;">${r.aspek}</td><td style="border: 1px solid #000; padding: 0.5rem; vertical-align: top;">${r.sangat_baik}</td><td style="border: 1px solid #000; padding: 0.5rem; vertical-align: top;">${r.baik}</td><td style="border: 1px solid #000; padding: 0.5rem; vertical-align: top;">${r.cukup}</td><td style="border: 1px solid #000; padding: 0.5rem; vertical-align: top;">${r.kurang}</td></tr>`;
   });
   proyekHtml += `</tbody></table>`;
 
-  let portofolioHtml = `<h5 class="font-bold mt-4 mb-2">2. Portofolio (Assessment of Learning)</h5>
-    <p class="mb-1"><b>Fokus Penilaian:</b> ${parsedResult?.portofolio?.fokus_penilaian || ''}</p>
-    <p class="mb-1"><b>Contoh Isi Portofolio:</b></p><ul class="list-disc pl-6 mb-2">${(parsedResult?.portofolio?.contoh_isi || []).map((i:string) => `<li>${i}</li>`).join('')}</ul>
-    <table class="w-full border-collapse mb-4"><thead><tr class="bg-gray-50"><th class="border border-gray-300 p-2">Aspek Penilaian</th><th class="border border-gray-300 p-2">Sangat Baik (4)</th><th class="border border-gray-300 p-2">Baik (3)</th><th class="border border-gray-300 p-2">Cukup (2)</th><th class="border border-gray-300 p-2">Kurang (1)</th></tr></thead><tbody>`;
+  let portofolioHtml = `<h5 style="font-weight: bold; font-size: 11pt; margin-top: 1rem; margin-bottom: 0.5rem;">2. Portofolio (Assessment of Learning)</h5>
+    <p style="margin-bottom: 0.25rem;"><strong style="font-weight:bold;">Fokus Penilaian:</strong> ${parsedResult?.portofolio?.fokus_penilaian || ''}</p>
+    <p style="margin-bottom: 0.25rem;"><strong style="font-weight:bold;">Contoh Isi Portofolio:</strong></p><ul style="margin-left: 1.5rem; margin-bottom: 0.5rem; list-style-type: disc;">${(parsedResult?.portofolio?.contoh_isi || []).map((i:string) => `<li>${i}</li>`).join('')}</ul>
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 1rem;"><thead><tr style="background-color: #f9fafb;"><th style="border: 1px solid #000; padding: 0.5rem; font-weight: bold;">Aspek Penilaian</th><th style="border: 1px solid #000; padding: 0.5rem; font-weight: bold;">Sangat Baik (4)</th><th style="border: 1px solid #000; padding: 0.5rem; font-weight: bold;">Baik (3)</th><th style="border: 1px solid #000; padding: 0.5rem; font-weight: bold;">Cukup (2)</th><th style="border: 1px solid #000; padding: 0.5rem; font-weight: bold;">Kurang (1)</th></tr></thead><tbody>`;
   (parsedResult?.portofolio?.rubrik || []).forEach((r:any) => {
-    portofolioHtml += `<tr><td class="border border-gray-300 p-2">${r.aspek}</td><td class="border border-gray-300 p-2">${r.sangat_baik}</td><td class="border border-gray-300 p-2">${r.baik}</td><td class="border border-gray-300 p-2">${r.cukup}</td><td class="border border-gray-300 p-2">${r.kurang}</td></tr>`;
+    portofolioHtml += `<tr><td style="border: 1px solid #000; padding: 0.5rem; vertical-align: top;">${r.aspek}</td><td style="border: 1px solid #000; padding: 0.5rem; vertical-align: top;">${r.sangat_baik}</td><td style="border: 1px solid #000; padding: 0.5rem; vertical-align: top;">${r.baik}</td><td style="border: 1px solid #000; padding: 0.5rem; vertical-align: top;">${r.cukup}</td><td style="border: 1px solid #000; padding: 0.5rem; vertical-align: top;">${r.kurang}</td></tr>`;
   });
   portofolioHtml += `</tbody></table>`;
 
-  return `<h4 class="font-bold text-[11pt] mt-4 mb-2">Asesmen pada Akhir Pembelajaran:</h4>${proyekHtml}${portofolioHtml}`;
+  return `<h4 style="font-weight: bold; font-size: 11pt; margin-top: 1rem; margin-bottom: 0.5rem;">Asesmen pada Akhir Pembelajaran:</h4>${proyekHtml}${portofolioHtml}`;
 }
 
 function createTandaTangan(data: RppData) {

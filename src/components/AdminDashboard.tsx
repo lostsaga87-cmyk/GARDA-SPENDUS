@@ -46,10 +46,12 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
 
     const chartData = last7Days.map(dateStr => {
       const dayStats = stats.filter(s => s.created_at.startsWith(dateStr));
+      const visitors = new Set(dayStats.filter(s => s.activity_type === 'visit').map(s => s.user_id)).size;
+      const generations = dayStats.filter(s => s.activity_type === 'generate').length;
       return {
         name: format(parseISO(dateStr), 'dd MMM', { locale: id }),
-        Pengunjung: dayStats.filter(s => s.activity_type === 'visit').length,
-        GenerateRPP: dayStats.filter(s => s.activity_type === 'generate').length
+        Pengunjung: visitors,
+        GenerateRPP: generations
       };
     });
 

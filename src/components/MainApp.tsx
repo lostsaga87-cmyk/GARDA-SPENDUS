@@ -15,6 +15,7 @@ export default function MainApp({ onLogout, appConfig, currentUser }: { onLogout
   const [showHelp, setShowHelp] = useState(false);
   const [showIdeaModal, setShowIdeaModal] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [userHistory, setUserHistory] = useState<any[]>([]);
   
@@ -30,13 +31,13 @@ export default function MainApp({ onLogout, appConfig, currentUser }: { onLogout
   }, []);
 
   useEffect(() => {
-    if (showProfile) {
+    if (showProfile || showHistory) {
       getUserHistory(currentUser.id).then(history => setUserHistory(history));
     }
-  }, [showProfile, currentUser.id]);
+  }, [showProfile, showHistory, currentUser.id]);
 
   const [rppData, setRppData] = useState<RppData>({
-    namaSekolah: currentUser.namaSekolah || '', jenjang: 'SMP', mapel: currentUser.mapel?.join(', ') || '', tahunPelajaran: '', kelasSemester: '', fase: '',
+    namaSekolah: currentUser.namaSekolah || '', jenjang: 'SMP', mapel: currentUser.mapel?.join(', ') || '', tahunPelajaran: '2025/2026', kelasSemester: '', fase: '',
     jumlahPertemuan: 1, durasiPertemuan: '1 JP x 40 Menit', alokasiWaktu: '',
     lingkungan: '', namaGuru: currentUser.username || '', namaKepsek: currentUser.namaKepsek || '', kota: '',
     kktpTercapaiMin: 80,
@@ -58,7 +59,9 @@ export default function MainApp({ onLogout, appConfig, currentUser }: { onLogout
   });
 
   const [validationError, setValidationError] = useState('');
+  const [showValidationPopup, setShowValidationPopup] = useState(false);
   const [showOutput, setShowOutput] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const captureAndValidateData = () => {
     const requiredFields: (keyof RppData)[] = ['namaSekolah', 'jenjang', 'mapel', 'tahunPelajaran', 'kelasSemester', 'fase', 'durasiPertemuan', 'namaGuru', 'namaKepsek', 'kota', 'cp_full_text'];
@@ -68,7 +71,7 @@ export default function MainApp({ onLogout, appConfig, currentUser }: { onLogout
     for (const field of requiredFields) {
       if (!rppData[field]) {
         isValid = false;
-        errorMessage = 'Harap isi semua kolom wajib.';
+        errorMessage = 'Kolom wajib diisi. Harap lengkapi semua data identitas dan capaian pembelajaran.';
         break;
       }
     }
@@ -80,8 +83,18 @@ export default function MainApp({ onLogout, appConfig, currentUser }: { onLogout
       isValid = false;
       errorMessage = 'Nilai Minimal "Tercapai" harus berupa angka antara 0-100.';
     }
+    if (isValid && rppData.cp_full_text) {
+      const materiCount = rppData.cp_full_text.split(';').map(m => m.trim()).filter(m => m.length > 0).length;
+      if (materiCount !== rppData.jumlahPertemuan) {
+        isValid = false;
+        errorMessage = `Tidak Sinkron: Jumlah pertemuan (${rppData.jumlahPertemuan}) tidak sesuai dengan materi. Berdasarkan pemisah titik koma (;), Anda memasukkan ${materiCount} materi pokok. Harap ganti jumlah pertemuan menjadi ${materiCount} atau sesuaikan materinya.`;
+      }
+    }
     
-    setValidationError(errorMessage);
+    if (!isValid) {
+      setValidationError(errorMessage);
+      setShowValidationPopup(true);
+    }
     return isValid;
   };
 
@@ -90,13 +103,16 @@ export default function MainApp({ onLogout, appConfig, currentUser }: { onLogout
     
     const validKeys = appConfig.apiKeys.filter(k => k && k.trim() !== '');
     if (validKeys.length === 0) {
-      alert("Kunci API belum dikonfigurasi oleh Admin. Silakan hubungi Admin.");
+      setValidationError("Kunci API belum dikonfigurasi oleh Admin. Silakan hubungi Admin.");
+      setShowValidationPopup(true);
       return;
     }
 
-    setShowOutput(true);
+    setIsGenerating(true);
     
-    const prompt = `Anda adalah seorang ahli kurikulum pendidikan Indonesia. Analisis kalimat Capaian Pembelajaran (CP) berikut: "${rppData.cp_full_text}". Identifikasi setiap materi pokok yang utuh dan berbeda di dalamnya. Untuk setiap materi pokok, buatkan 3 Tujuan Pembelajaran (TP) sesuai level kognitif: Memahami, Mengaplikasi, dan Merefleksi. Berikan jawaban dalam format JSON. JSON harus memiliki satu kunci utama "materi" yang berisi array. Setiap objek dalam array mewakili satu materi pokok dan memiliki kunci "topic" (string) dan "tps" (array dari 3 objek TP). Setiap objek TP harus memiliki kunci "level" dan "text".`;
+    const prompt = `Anda adalah ahli kurikulum pendidikan Indonesia. Analisis teks Capaian Pembelajaran/Materi berikut: "${rppData.cp_full_text}". 
+PENTING: Teks tersebut mengandung ${rppData.jumlahPertemuan} materi pokok yang dipisahkan oleh tanda titik koma (;). Anda HARUS memecahnya tepat menjadi ${rppData.jumlahPertemuan} materi pokok sesuai pemisahan tersebut. 
+Untuk setiap materi pokok, buatkan 3 Tujuan Pembelajaran (TP) sesuai level kognitif: Memahami, Mengaplikasi, dan Merefleksi. Berikan jawaban dalam format JSON. JSON harus memiliki satu kunci utama "materi" yang berisi array. Setiap objek dalam array mewakili satu materi pokok dan memiliki kunci "topic" (string) dan "tps" (array dari 3 objek TP). Setiap objek TP harus memiliki kunci "level" dan "text".`;
     const schema = { 
       type: "OBJECT", 
       properties: { 
@@ -131,9 +147,13 @@ export default function MainApp({ onLogout, appConfig, currentUser }: { onLogout
       
       // Log generate activity
       await logActivity(currentUser.id, 'generate', `Generate RPP: ${rppData.mapel} - Kelas ${rppData.kelasSemester}`);
+      
+      setShowOutput(true);
     } catch (error: any) {
       console.error("Error generating TPs:", error);
       alert(`Gagal menganalisis CP dengan AI. Detail: ${error.message}`);
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -200,8 +220,8 @@ export default function MainApp({ onLogout, appConfig, currentUser }: { onLogout
         
         <div className="flex-1 overflow-y-auto py-4 flex flex-col gap-2 px-3">
           {/* Profile Section */}
-          <div className={`p-3 rounded-xl bg-blue-50 border border-blue-100 flex flex-col ${isSidebarOpen ? 'items-start' : 'items-center'} mb-4`}>
-            <button onClick={() => setShowProfile(true)} className="flex items-center gap-3 w-full text-left" title="Profil & Riwayat">
+          <div className={`p-3 rounded-xl bg-blue-50 border border-blue-100 flex flex-col ${isSidebarOpen ? 'items-start' : 'items-center'} mb-2`}>
+            <button onClick={() => setShowProfile(true)} className="flex items-center gap-3 w-full text-left" title="Profil Pengguna">
               <div className="p-2 bg-blue-600 text-white rounded-full shrink-0">
                 <UserIcon className="w-5 h-5" />
               </div>
@@ -212,6 +232,13 @@ export default function MainApp({ onLogout, appConfig, currentUser }: { onLogout
                   <p className="text-xs text-gray-500 truncate mt-1">{currentUser.namaSekolah || 'Sekolah Belum Diatur'}</p>
                 </div>
               )}
+            </button>
+          </div>
+          
+          <div className="flex flex-col mb-4">
+            <button onClick={() => setShowHistory(true)} className={`flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 text-gray-700 transition-colors ${!isSidebarOpen && 'justify-center'}`} title="Riwayat Aktivitas">
+              <History className="w-5 h-5 shrink-0 text-purple-500" />
+              {isSidebarOpen && <span className="font-medium text-gray-700">Riwayat Aktivitas</span>}
             </button>
           </div>
 
@@ -246,11 +273,13 @@ export default function MainApp({ onLogout, appConfig, currentUser }: { onLogout
                 validationError={validationError}
                 onGenerateTP={handleGenerateTP}
                 appConfig={appConfig}
+                userMapel={currentUser.mapel}
                 onShowIdeaModal={() => {
                   if (captureAndValidateData()) {
                     const validKeys = appConfig.apiKeys.filter(k => k && k.trim() !== '');
                     if (validKeys.length === 0) {
-                      alert("Kunci API belum dikonfigurasi oleh Admin.");
+                      setValidationError("Kunci API belum dikonfigurasi oleh Admin.");
+                      setShowValidationPopup(true);
                     } else {
                       setShowIdeaModal(true);
                     }
@@ -271,10 +300,45 @@ export default function MainApp({ onLogout, appConfig, currentUser }: { onLogout
         </main>
       </div>
 
-      {/* Profile & History Modal */}
+      {/* Generating Loading Modal */}
+      {isGenerating && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col p-8 items-center text-center">
+            <div className="relative w-20 h-20 mb-6">
+              <div className="absolute inset-0 border-4 border-blue-100 rounded-full"></div>
+              <div className="absolute inset-0 border-4 border-blue-600 rounded-full border-t-transparent animate-spin"></div>
+            </div>
+            <h3 className="text-xl font-bold text-gray-800 mb-2">Memproses Data...</h3>
+            <p className="text-gray-600">AI sedang membedah materi dan merumuskan Tujuan Pembelajaran yang sesuai dengan kriteria tingkat kognitif. Mohon tunggu sebentar.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Validation Popup Modal */}
+      {showValidationPopup && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col transform transition-all scale-100">
+            <div className="p-6 text-center">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-red-500 text-3xl font-bold">!</span>
+              </div>
+              <h3 className="text-xl font-bold text-gray-800 mb-2">Peringatan</h3>
+              <p className="text-gray-600 mb-6">{validationError}</p>
+              <button 
+                onClick={() => setShowValidationPopup(false)}
+                className="w-full py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200"
+              >
+                Mengerti
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Profile Modal */}
       {showProfile && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col">
             <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-slate-50">
               <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
                 <UserIcon className="w-6 h-6 text-blue-600" /> Profil Pengguna
@@ -285,73 +349,92 @@ export default function MainApp({ onLogout, appConfig, currentUser }: { onLogout
             </div>
             
             <div className="p-6 overflow-y-auto flex-1">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {/* Change Password Section */}
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                    <Key className="w-5 h-5 text-amber-500" /> Ubah Password
-                  </h3>
-                  <form onSubmit={handleChangePassword} className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Password Baru</label>
-                      <input 
-                        type="password" 
-                        className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" 
-                        value={newPassword}
-                        onChange={e => setNewPassword(e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Konfirmasi Password</label>
-                      <input 
-                        type="password" 
-                        className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" 
-                        value={confirmPassword}
-                        onChange={e => setConfirmPassword(e.target.value)}
-                        required
-                      />
-                    </div>
-                    {passwordMsg && (
-                      <div className={`text-sm p-2 rounded ${passwordMsg.includes('berhasil') ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
-                        {passwordMsg}
-                      </div>
-                    )}
-                    <button 
-                      type="submit" 
-                      disabled={isChangingPassword}
-                      className="w-full py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-70"
-                    >
-                      {isChangingPassword ? 'Menyimpan...' : 'Simpan Password'}
-                    </button>
-                  </form>
-                </div>
-
-                {/* History Section */}
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                    <History className="w-5 h-5 text-purple-500" /> Riwayat Aktivitas
-                  </h3>
-                  <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
-                    {userHistory.length === 0 ? (
-                      <p className="text-gray-500 text-sm italic">Belum ada riwayat aktivitas.</p>
-                    ) : (
-                      userHistory.map((item, idx) => (
-                        <div key={idx} className="bg-gray-50 p-3 rounded-lg border border-gray-100 text-sm">
-                          <div className="flex justify-between items-start mb-1">
-                            <span className={`font-semibold ${item.activity_type === 'generate' ? 'text-purple-600' : 'text-blue-600'}`}>
-                              {item.activity_type === 'generate' ? 'Generate RPP' : 'Login'}
-                            </span>
-                            <span className="text-xs text-gray-500">
-                              {format(new Date(item.created_at), 'dd MMM yyyy HH:mm', { locale: id })}
-                            </span>
-                          </div>
-                          {item.details && <p className="text-gray-600 text-xs mt-1">{item.details}</p>}
-                        </div>
-                      ))
-                    )}
+              {/* Change Password Section */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                  <Key className="w-5 h-5 text-amber-500" /> Ubah Password
+                </h3>
+                <form onSubmit={handleChangePassword} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Password Baru</label>
+                    <input 
+                      type="password" 
+                      className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" 
+                      value={newPassword}
+                      onChange={e => setNewPassword(e.target.value)}
+                      required
+                    />
                   </div>
-                </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Konfirmasi Password</label>
+                    <input 
+                      type="password" 
+                      className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" 
+                      value={confirmPassword}
+                      onChange={e => setConfirmPassword(e.target.value)}
+                      required
+                    />
+                  </div>
+                  {passwordMsg && (
+                    <div className={`text-sm p-2 rounded ${passwordMsg.includes('berhasil') ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
+                      {passwordMsg}
+                    </div>
+                  )}
+                  <button 
+                    type="submit" 
+                    disabled={isChangingPassword}
+                    className="w-full py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-70"
+                  >
+                    {isChangingPassword ? 'Menyimpan...' : 'Simpan Password'}
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* History Modal */}
+      {showHistory && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-slate-50">
+              <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                <History className="w-6 h-6 text-purple-600" /> Riwayat Aktivitas & Dokumen
+              </h2>
+              <button onClick={() => setShowHistory(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto flex-1">
+              <div className="space-y-4">
+                {userHistory.length === 0 ? (
+                  <p className="text-gray-500 italic text-center py-8">Belum ada riwayat aktivitas.</p>
+                ) : (
+                  userHistory.map((item, idx) => (
+                    <div key={idx} className="bg-gray-50 p-4 rounded-xl border border-gray-100 hover:border-purple-200 transition-colors">
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex items-center gap-2">
+                          <div className={`p-2 rounded-lg ${item.activity_type === 'generate' ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}`}>
+                            {item.activity_type === 'generate' ? <History className="w-4 h-4" /> : <UserIcon className="w-4 h-4" />}
+                          </div>
+                          <span className={`font-semibold text-lg ${item.activity_type === 'generate' ? 'text-purple-700' : 'text-blue-700'}`}>
+                            {item.activity_type === 'generate' ? 'Generate Dokumen RPP' : 'Login'}
+                          </span>
+                        </div>
+                        <span className="text-sm font-medium text-gray-500 bg-white px-2 py-1 rounded shadow-sm">
+                          {format(new Date(item.created_at), 'dd MMM yyyy HH:mm', { locale: id })}
+                        </span>
+                      </div>
+                      {item.details && (
+                        <div className="mt-3 pl-10">
+                          <p className="text-gray-700 font-medium">{item.details}</p>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>

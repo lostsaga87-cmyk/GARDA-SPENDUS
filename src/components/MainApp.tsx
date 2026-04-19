@@ -8,29 +8,51 @@ import { IdeaModal } from './Modals';
 import { RppData } from '../types';
 import { makeApiCall } from '../lib/api';
 import { AppConfig, User, logActivity, getUserHistory, updatePassword, getUserDocuments, SavedDocument, getDocumentById } from '../lib/store';
-import { User as UserIcon, Clock, History, Key, X, Check, Menu, HelpCircle, LogOut, FileText, Download, MessageSquare } from 'lucide-react';
+import { User as UserIcon, Clock, History, Key, X, Check, Menu, HelpCircle, LogOut, FileText, Download, MessageSquare, ChevronDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
+
+const SUBJECTS = [
+  'Bahasa Indonesia', 'Bahasa Inggris', 'Bahasa Daerah', 'Matematika', 
+  'IPA', 'IPS', 'Informatika', 'PAI', 'BTQ', 'Pendidikan Pancasila', 
+  'Seni Budaya/Seni Rupa', 'Prakarya', 'PJOK'
+];
 
 export default function MainApp({ onLogout, appConfig, currentUser }: { onLogout: () => void, appConfig: AppConfig, currentUser: User }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
   
-  // Logic to close sidebar when clicking outside
+  // Profile Mapel Dropdown State
+  const [isMapelDropdownOpen, setIsMapelDropdownOpen] = useState(false);
+  const mapelDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Logic to close sidebar & dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (sidebarRef.current && !sidebarRef.current.contains(event.target as Node)) {
         setIsSidebarOpen(false);
       }
+      if (mapelDropdownRef.current && !mapelDropdownRef.current.contains(event.target as Node)) {
+        setIsMapelDropdownOpen(false);
+      }
     }
     
-    if (isSidebarOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
+    document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isSidebarOpen]);
+  }, []);
+
+  const toggleSubject = (subject: string) => {
+    setEditProfileData(prev => {
+      const current = prev.mapel;
+      if (current.includes(subject)) {
+        return { ...prev, mapel: current.filter(s => s !== subject) };
+      } else {
+        return { ...prev, mapel: [...current, subject] };
+      }
+    });
+  };
 
   const [currentView, setCurrentView] = useState<'generator' | 'profile' | 'history' | 'documents' | 'feedback' | 'help'>('generator');
   const [showIdeaModal, setShowIdeaModal] = useState(false);
@@ -427,12 +449,36 @@ Untuk setiap materi pokok, buatkan 3 Tujuan Pembelajaran (TP) sesuai level kogni
                     <label className="block text-sm font-medium text-gray-700 mb-1">Nama Kepala Sekolah</label>
                     <input type="text" value={editProfileData.namaKepsek} onChange={e => setEditProfileData(prev => ({...prev, namaKepsek: e.target.value}))} className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500" />
                   </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Mata Pelajaran (Pisahkan dengan koma)</label>
-                    <input type="text" value={editProfileData.mapel.join(', ')} onChange={e => {
-                        const maps = e.target.value.split(',').map(s => s.trim()).filter(s => s.length > 0);
-                        setEditProfileData(prev => ({...prev, mapel: maps}))
-                      }} className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500" placeholder="Biologi, Matematika..." />
+                  <div className="md:col-span-2 relative" ref={mapelDropdownRef}>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Mata Pelajaran</label>
+                    <div 
+                      className={`w-full px-3 py-2 border ${isMapelDropdownOpen ? 'border-blue-500 ring-2 ring-blue-500/25' : 'border-gray-300'} rounded bg-white cursor-pointer flex justify-between items-center transition-all`}
+                      onClick={() => setIsMapelDropdownOpen(!isMapelDropdownOpen)}
+                    >
+                      <span className={`truncate ${editProfileData.mapel.length === 0 ? 'text-gray-400' : 'text-gray-800'}`}>
+                        {editProfileData.mapel.length === 0 
+                          ? 'Pilih Mata Pelajaran' 
+                          : editProfileData.mapel.join(', ')}
+                      </span>
+                      <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${isMapelDropdownOpen ? 'rotate-180' : ''}`} />
+                    </div>
+                    
+                    {isMapelDropdownOpen && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                        {SUBJECTS.map((subject) => (
+                          <div 
+                            key={subject}
+                            className="flex items-center px-4 py-2 hover:bg-blue-50 cursor-pointer"
+                            onClick={() => toggleSubject(subject)}
+                          >
+                            <div className={`w-5 h-5 border rounded mr-3 flex items-center justify-center ${editProfileData.mapel.includes(subject) ? 'bg-blue-500 border-blue-500' : 'border-gray-300'}`}>
+                              {editProfileData.mapel.includes(subject) && <Check className="w-3.5 h-3.5 text-white" />}
+                            </div>
+                            <span className="text-gray-700">{subject}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
 

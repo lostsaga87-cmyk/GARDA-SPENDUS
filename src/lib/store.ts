@@ -11,6 +11,7 @@ export interface User {
   mapel?: string[];
   role: 'admin' | 'user';
   status: 'approved' | 'pending' | 'rejected';
+  profile_picture?: string;
 }
 
 export interface AppConfig {
@@ -106,7 +107,8 @@ export async function loginUser(nip: string, password: string): Promise<User | n
     noHp: data.no_hp,
     nip: data.nip,
     namaKepsek: data.nama_kepsek,
-    mapel: parsedMapel
+    mapel: parsedMapel,
+    profile_picture: data.profile_picture
   };
 }
 
@@ -144,7 +146,8 @@ export async function getUsers(): Promise<User[]> {
       noHp: d.no_hp,
       nip: d.nip,
       namaKepsek: d.nama_kepsek,
-      mapel: parsedMapel
+      mapel: parsedMapel,
+      profile_picture: d.profile_picture
     };
   });
 }
@@ -156,6 +159,20 @@ export async function updateUserStatus(id: string, status: string) {
 
 export async function updatePassword(userId: string, newPassword: string) {
   const { error } = await supabase.from('users').update({ password: newPassword }).eq('id', userId);
+  if (error) throw error;
+}
+
+export async function updateUserProfile(userId: string, updates: Partial<User>) {
+  const dbUpdates: any = {};
+  if (updates.username !== undefined) dbUpdates.username = updates.username;
+  if (updates.nip !== undefined) dbUpdates.nip = updates.nip;
+  if (updates.namaSekolah !== undefined) dbUpdates.nama_sekolah = updates.namaSekolah;
+  if (updates.namaKepsek !== undefined) dbUpdates.nama_kepsek = updates.namaKepsek;
+  if (updates.noHp !== undefined) dbUpdates.no_hp = updates.noHp;
+  if (updates.mapel !== undefined) dbUpdates.mapel = updates.mapel;
+  if (updates.profile_picture !== undefined) dbUpdates.profile_picture = updates.profile_picture;
+
+  const { error } = await supabase.from('users').update(dbUpdates).eq('id', userId);
   if (error) throw error;
 }
 

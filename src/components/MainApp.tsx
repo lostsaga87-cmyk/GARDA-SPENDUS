@@ -1,22 +1,42 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import Cropper from 'react-easy-crop';
+import { getCroppedImgBase64 } from '../lib/cropImage';
 import Header from './Header';
 import FormSection from './FormSection';
 import OutputSection from './OutputSection';
-import { HelpModal, IdeaModal } from './Modals';
+import { IdeaModal } from './Modals';
 import { RppData } from '../types';
 import { makeApiCall } from '../lib/api';
 import { AppConfig, User, logActivity, getUserHistory, updatePassword, getUserDocuments, SavedDocument, getDocumentById } from '../lib/store';
-import { User as UserIcon, Clock, History, Key, X, Check, Menu, HelpCircle, LogOut, FileText, Download } from 'lucide-react';
+import { User as UserIcon, Clock, History, Key, X, Check, Menu, HelpCircle, LogOut, FileText, Download, MessageSquare } from 'lucide-react';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 
 export default function MainApp({ onLogout, appConfig, currentUser }: { onLogout: () => void, appConfig: AppConfig, currentUser: User }) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [showHelp, setShowHelp] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const sidebarRef = useRef<HTMLDivElement>(null);
+  
+  // Logic to close sidebar when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (sidebarRef.current && !sidebarRef.current.contains(event.target as Node)) {
+        setIsSidebarOpen(false);
+      }
+    }
+    
+    if (isSidebarOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isSidebarOpen]);
+
+  const [currentView, setCurrentView] = useState<'generator' | 'profile' | 'history' | 'documents' | 'feedback' | 'help'>('generator');
   const [showIdeaModal, setShowIdeaModal] = useState(false);
-  const [showProfile, setShowProfile] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
-  const [showDocuments, setShowDocuments] = useState(false);
+  
+  const [feedbackMsg, setFeedbackMsg] = useState('');
+  const [isSendingFeedback, setIsSendingFeedback] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [userHistory, setUserHistory] = useState<any[]>([]);
   const [userDocuments, setUserDocuments] = useState<SavedDocument[]>([]);
@@ -26,6 +46,69 @@ export default function MainApp({ onLogout, appConfig, currentUser }: { onLogout
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordMsg, setPasswordMsg] = useState('');
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+
+  // Profile Edit State
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [profileMsg, setProfileMsg] = useState('');
+  const [editProfileData, setEditProfileData] = useState({
+    username: currentUser.username || '',
+    nip: currentUser.nip || '',
+    namaSekolah: currentUser.namaSekolah || '',
+    namaKepsek: currentUser.namaKepsek || '',
+    noHp: currentUser.noHp || '',
+    mapel: currentUser.mapel || [],
+    profile_picture: currentUser.profile_picture || ''
+  });
+
+  // Photo Cropper State
+  const [showCropModal, setShowCropModal] = useState(false);
+  const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
+  
+  const onCropComplete = useCallback((croppedArea: any, croppedAreaPixels: any) => {
+    setCroppedAreaPixels(croppedAreaPixels);
+  }, []);
+  
+  // Ref for file input
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleSendFeedback = async () => {
+    if (!feedbackMsg.trim()) {
+      alert("Pesan kritik/saran tidak boleh kosong.");
+      return;
+    }
+
+    setIsSendingFeedback(true);
+    try {
+      const formData = new FormData();
+      formData.append('target', '08992124036'); // Hardcoded Admin WhatsApp Number
+      formData.append('message', `*KRITIK & SARAN*\n\nDari: *${currentUser.username}*\nSekolah: ${currentUser.namaSekolah || '-'}\n\nPesan:\n"${feedbackMsg}"`);
+      
+      const response = await fetch("https://api.fonnte.com/send", {
+        method: "POST",
+        headers: {
+          "Authorization": "15nvY1EPBnyie3A8nX8n" // Fonnte token
+        },
+        body: formData
+      });
+      
+      const result = await response.json();
+      if (result.status) {
+        alert("Kritik dan Saran berhasil dikirimkan via WhatsApp ke Admin. Terima kasih!");
+        setFeedbackMsg('');
+      } else {
+        alert("Gagal mengirim pesan: " + (result.reason || "Terjadi kesalahan."));
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Terjadi kesalahan sistem saat menghubungi server.");
+    } finally {
+      setIsSendingFeedback(false);
+    }
+  };
   
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -33,16 +116,16 @@ export default function MainApp({ onLogout, appConfig, currentUser }: { onLogout
   }, []);
 
   useEffect(() => {
-    if (showProfile || showHistory) {
+    if (currentView === 'profile' || currentView === 'history') {
       getUserHistory(currentUser.id).then(history => setUserHistory(history));
     }
-  }, [showProfile, showHistory, currentUser.id]);
+  }, [currentView, currentUser.id]);
 
   useEffect(() => {
-    if (showDocuments) {
+    if (currentView === 'documents') {
       getUserDocuments(currentUser.id).then(docs => setUserDocuments(docs));
     }
-  }, [showDocuments, currentUser.id]);
+  }, [currentView, currentUser.id]);
 
   const [rppData, setRppData] = useState<RppData>({
     namaSekolah: currentUser.namaSekolah || '', jenjang: 'SMP', mapel: currentUser.mapel?.join(', ') || '', tahunPelajaran: '2025/2026', kelasSemester: '', fase: '',
@@ -191,6 +274,71 @@ Untuk setiap materi pokok, buatkan 3 Tujuan Pembelajaran (TP) sesuai level kogni
     }
   };
 
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingProfile(true);
+    setProfileMsg('');
+    try {
+      // Import the updateUserProfile instead of store.ts directly. Actually it is imported.
+      const { updateUserProfile } = await import('../lib/store');
+      await updateUserProfile(currentUser.id, editProfileData);
+      
+      // Update the local current user context object if possible (or reload).
+      // Since it's passed as prop, we might need a hack or just inform user to re-login to see all changes properly, 
+      // but we can update the local edit state.
+      setProfileMsg('Profil berhasil diperbarui!');
+      setIsEditingProfile(false);
+      setTimeout(() => setProfileMsg(''), 3000);
+      
+      // Just temporarily mutating currentUser for local UI feedback
+      currentUser.username = editProfileData.username;
+      currentUser.nip = editProfileData.nip;
+      currentUser.namaSekolah = editProfileData.namaSekolah;
+      currentUser.namaKepsek = editProfileData.namaKepsek;
+      currentUser.noHp = editProfileData.noHp;
+      currentUser.mapel = editProfileData.mapel;
+      currentUser.profile_picture = editProfileData.profile_picture;
+      
+    } catch (err) {
+      console.error(err);
+      setProfileMsg('Gagal memperbarui profil.');
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 1 * 1024 * 1024) {
+      alert("Ukuran foto maksimal 1MB. Silakan pilih foto yang lebih kecil.");
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImageSrc(reader.result as string);
+      setShowCropModal(true);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveCroppedImage = async () => {
+    try {
+      if (imageSrc && croppedAreaPixels) {
+        const croppedImage = await getCroppedImgBase64(imageSrc, croppedAreaPixels);
+        setEditProfileData(prev => ({ ...prev, profile_picture: croppedImage }));
+        setShowCropModal(false);
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Gagal memotong gambar.');
+    }
+  };
+
   const getGreeting = () => {
     const hour = currentTime.getHours();
     if (hour < 11) return 'Selamat Pagi';
@@ -199,117 +347,551 @@ Untuk setiap materi pokok, buatkan 3 Tujuan Pembelajaran (TP) sesuai level kogni
     return 'Selamat Malam';
   };
 
+  const renderMainContent = () => {
+    switch (currentView) {
+      case 'profile':
+        return (
+          <div className="w-full max-w-2xl mx-auto bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div className="flex justify-between items-center mb-6 border-b pb-4">
+              <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                <UserIcon className="w-6 h-6 text-blue-600" /> Profil Pengguna
+              </h2>
+              <button 
+                onClick={() => {
+                  if (isEditingProfile) {
+                    setIsEditingProfile(false);
+                    // Reset to current user
+                    setEditProfileData({
+                      username: currentUser.username || '',
+                      nip: currentUser.nip || '',
+                      namaSekolah: currentUser.namaSekolah || '',
+                      namaKepsek: currentUser.namaKepsek || '',
+                      noHp: currentUser.noHp || '',
+                      mapel: currentUser.mapel || [],
+                      profile_picture: currentUser.profile_picture || ''
+                    });
+                  } else {
+                    setIsEditingProfile(true);
+                  }
+                }}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${isEditingProfile ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}`}
+              >
+                {isEditingProfile ? 'Batal Edit' : 'Edit Identitas'}
+              </button>
+            </div>
+
+            {profileMsg && (
+              <div className={`mb-6 text-sm p-3 rounded-lg border flex items-center gap-2 ${profileMsg.includes('berhasil') ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                <Check className="w-4 h-4" /> {profileMsg}
+              </div>
+            )}
+
+            {isEditingProfile ? (
+              <form onSubmit={handleSaveProfile} className="mb-8 space-y-4 bg-slate-50 p-5 rounded-xl border border-blue-100 shadow-sm relative">
+                <div className="flex flex-col sm:flex-row gap-5 items-start mb-4 border-b border-gray-200 pb-5">
+                  <div className="shrink-0 flex flex-col items-center gap-2">
+                    <div 
+                      className="w-24 h-24 rounded-full border-4 border-white shadow-md bg-gray-200 flex items-center justify-center overflow-hidden cursor-pointer relative group"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      {editProfileData.profile_picture ? (
+                        <img src={editProfileData.profile_picture} alt="Avatar" className="w-full h-full object-cover" />
+                      ) : (
+                        <UserIcon className="w-10 h-10 text-gray-400" />
+                      )}
+                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span className="text-white text-xs font-semibold text-center px-1">Ubah Foto</span>
+                      </div>
+                    </div>
+                    <span className="text-[11px] text-gray-500 font-medium">(Maks. 1MB)</span>
+                    <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handlePhotoUpload} />
+                  </div>
+                  <div className="flex-1 space-y-4 w-full">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Nama Lengkap / Username</label>
+                      <input type="text" value={editProfileData.username} onChange={e => setEditProfileData(prev => ({...prev, username: e.target.value}))} className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500" required />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">NIP (Opsional)</label>
+                      <input type="text" value={editProfileData.nip} onChange={e => setEditProfileData(prev => ({...prev, nip: e.target.value}))} className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Nama Sekolah</label>
+                    <input type="text" value={editProfileData.namaSekolah} onChange={e => setEditProfileData(prev => ({...prev, namaSekolah: e.target.value}))} className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Nama Kepala Sekolah</label>
+                    <input type="text" value={editProfileData.namaKepsek} onChange={e => setEditProfileData(prev => ({...prev, namaKepsek: e.target.value}))} className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500" />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Mata Pelajaran (Pisahkan dengan koma)</label>
+                    <input type="text" value={editProfileData.mapel.join(', ')} onChange={e => {
+                        const maps = e.target.value.split(',').map(s => s.trim()).filter(s => s.length > 0);
+                        setEditProfileData(prev => ({...prev, mapel: maps}))
+                      }} className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500" placeholder="Biologi, Matematika..." />
+                  </div>
+                </div>
+
+                <button 
+                  type="submit" 
+                  disabled={isSavingProfile}
+                  className="w-full mt-4 py-2.5 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors disabled:opacity-70 flex items-center justify-center gap-2"
+                >
+                  {isSavingProfile ? 'Menyimpan...' : 'Simpan Identitas'}
+                </button>
+              </form>
+            ) : (
+              <div className="mb-8 flex flex-col sm:flex-row gap-6 bg-slate-50 p-5 rounded-xl border border-slate-100 items-start">
+                <div className="w-24 h-24 shrink-0 rounded-full border-4 border-white shadow-md bg-gray-200 flex items-center justify-center overflow-hidden">
+                  {currentUser.profile_picture ? (
+                    <img src={currentUser.profile_picture} alt="Avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <UserIcon className="w-10 h-10 text-gray-400" />
+                  )}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8 w-full text-sm">
+                  <div>
+                    <p className="text-gray-500 mb-0.5 font-medium">Username / Nama</p>
+                    <p className="font-semibold text-gray-800 text-base">{currentUser.username}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 mb-0.5 font-medium">NIP</p>
+                    <p className="font-semibold text-gray-800 text-base">{currentUser.nip || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 mb-0.5 font-medium">Sekolah</p>
+                    <p className="font-semibold text-gray-800">{currentUser.namaSekolah || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 mb-0.5 font-medium">Kepala Sekolah</p>
+                    <p className="font-semibold text-gray-800">{currentUser.namaKepsek || '-'}</p>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <p className="text-gray-500 mb-0.5 font-medium">Mata Pelajaran</p>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {currentUser.mapel && currentUser.mapel.length > 0 ? currentUser.mapel.map((m, i) => (
+                        <span key={i} className="px-2 py-1 bg-blue-100 text-blue-700 rounded-md text-xs font-semibold">{m}</span>
+                      )) : <span className="text-gray-800 font-semibold">-</span>}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Change Password Section */}
+            <div className="pt-6 border-t border-gray-100">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <Key className="w-5 h-5 text-amber-500" /> Ubah Password
+              </h3>
+              <form onSubmit={handleChangePassword} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Password Baru</label>
+                  <input 
+                    type="password" 
+                    className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" 
+                    value={newPassword}
+                    onChange={e => setNewPassword(e.target.value)}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Konfirmasi Password</label>
+                  <input 
+                    type="password" 
+                    className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" 
+                    value={confirmPassword}
+                    onChange={e => setConfirmPassword(e.target.value)}
+                    required
+                  />
+                </div>
+                {passwordMsg && (
+                  <div className={`text-sm p-3 rounded-lg border content-center align-middle ${passwordMsg.includes('berhasil') ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                    {passwordMsg}
+                  </div>
+                )}
+                <button 
+                  type="submit" 
+                  disabled={isChangingPassword}
+                  className="w-full py-3 mt-2 bg-amber-500 text-white rounded-lg font-bold hover:bg-amber-600 transition-colors disabled:opacity-70 shadow shadow-amber-200"
+                >
+                  {isChangingPassword ? 'Menyimpan...' : 'Simpan Password'}
+                </button>
+              </form>
+            </div>
+          </div>
+        );
+      case 'history':
+        return (
+          <div className="w-full max-w-4xl mx-auto bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2 border-b pb-4">
+              <History className="w-6 h-6 text-purple-600" /> Riwayat Aktivitas & Dokumen
+            </h2>
+            <div className="space-y-4">
+              {userHistory.length === 0 ? (
+                <p className="text-gray-500 italic text-center py-8">Belum ada riwayat aktivitas.</p>
+              ) : (
+                userHistory.map((item, idx) => (
+                  <div key={idx} className="bg-gray-50 p-4 rounded-xl border border-gray-200 hover:border-purple-300 hover:bg-purple-50 transition-colors">
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className={`p-2 rounded-lg ${item.activity_type === 'generate' ? 'bg-purple-200 text-purple-700' : 'bg-blue-200 text-blue-700'}`}>
+                          {item.activity_type === 'generate' ? <History className="w-5 h-5" /> : <UserIcon className="w-5 h-5" />}
+                        </div>
+                        <span className={`font-semibold text-lg ${item.activity_type === 'generate' ? 'text-purple-800' : 'text-blue-800'}`}>
+                          {item.activity_type === 'generate' ? 'Generate Dokumen RPP' : 'Login'}
+                        </span>
+                      </div>
+                      <span className="text-sm font-medium text-gray-600 bg-white border border-gray-200 px-3 py-1 rounded shadow-sm">
+                        {format(new Date(item.created_at), 'dd MMM yyyy HH:mm', { locale: id })}
+                      </span>
+                    </div>
+                    {item.details && (
+                      <div className="mt-3 pl-12">
+                        <p className="text-gray-700 font-medium">{item.details}</p>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        );
+      case 'documents':
+        return (
+          <div className="w-full max-w-5xl mx-auto bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2 border-b pb-4">
+              <FileText className="w-6 h-6 text-green-600" /> Dokumen Tersimpan
+            </h2>
+            {userDocuments.length === 0 ? (
+              <div className="text-center py-12">
+                <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500 font-medium">Belum ada dokumen yang disimpan.</p>
+                <p className="text-sm text-gray-400 mt-2">Generate Modul Ajar untuk menyimpan dokumen di sini.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {userDocuments.map((doc) => (
+                  <div key={doc.id} className="bg-white border hover:bg-slate-50 border-gray-200 rounded-xl p-4 hover:shadow-md transition-all flex flex-col items-start gap-3">
+                    <div className="flex items-start justify-between w-full">
+                      <div className="flex items-center gap-3">
+                        <div className="p-3 bg-green-100/50 text-green-600 border border-green-200 rounded-lg">
+                          <FileText className="w-6 h-6" />
+                        </div>
+                        <div className="flex flex-col">
+                          <h3 className="font-bold text-gray-800 line-clamp-1" title={doc.title}>{doc.title}</h3>
+                          <p className="text-xs font-semibold text-gray-500 mt-0.5">{format(new Date(doc.created_at), 'dd MMM yyyy, HH:mm', { locale: id })}</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 w-full mt-3">
+                      <button 
+                        onClick={async () => {
+                          const fullDoc = await getDocumentById(doc.id);
+                          if (fullDoc && fullDoc.content) {
+                            const wordDocument = `
+                              <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+                              <head>
+                                <meta charset='utf-8'>
+                                <title>Export HTML To Doc</title>
+                                <style>
+                                  @page WordSection1 { size: 21cm 29.7cm; margin: 2cm; }
+                                  div.WordSection1 { page: WordSection1; }
+                                  body { font-family: "Times New Roman", Times, serif; font-size: 11pt; line-height: 1.5; color: windowtext; }
+                                  table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+                                  td, th { border: 1px solid windowtext; padding: 5px; vertical-align: top; }
+                                  h2 { font-size: 14pt; font-weight: bold; text-align: center; }
+                                  h3 { font-size: 12pt; font-weight: bold; border-bottom: 1px solid windowtext; }
+                                  h4, h5 { font-size: 11pt; font-weight: bold; }
+                                  p { text-align: justify; margin: 0 0 10px 0; }
+                                </style>
+                              </head>
+                              <body>
+                                <div class="WordSection1">
+                                  ${fullDoc.content}
+                                </div>
+                              </body>
+                              </html>
+                            `;
+                            const blob = new Blob(['\ufeff', wordDocument], { type: 'application/msword;charset=utf-8' });
+                            const downloadLink = document.createElement("a");
+                            document.body.appendChild(downloadLink);
+                            const filename = `${doc.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}`;
+                            const url = URL.createObjectURL(blob);
+                            downloadLink.href = url;
+                            downloadLink.download = `${filename}.doc`;
+                            downloadLink.click();
+                            setTimeout(() => {
+                                document.body.removeChild(downloadLink);
+                                window.URL.revokeObjectURL(url);
+                            }, 100);
+                          }
+                        }} 
+                        className="flex-1 flex justify-center items-center gap-2 bg-emerald-600 text-white py-2.5 rounded-lg hover:bg-emerald-700 transition-colors shadow shadow-emerald-200 text-sm font-semibold"
+                      >
+                        <Download className="w-5 h-5" /> Unduh (Word)
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      case 'feedback':
+        return (
+          <div className="w-full max-w-2xl mx-auto bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2 border-b pb-4">
+              <MessageSquare className="w-6 h-6 text-cyan-600" /> Kritik & Saran
+            </h2>
+            <div className="space-y-4">
+              <div className="bg-cyan-50 border border-cyan-100 rounded-lg p-4 mb-4">
+                 <p className="text-gray-700 font-medium">Bantu kami menjadi lebih baik! Pesan yang Anda kirim di bawah ini akan langsung masuk ke WhatsApp Admin <strong>{appConfig.appName}</strong>.</p>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Tuliskan Pesan Anda</label>
+                <textarea 
+                  className="w-full p-4 border border-gray-300 rounded-xl focus:ring-4 focus:ring-cyan-500/20 focus:border-cyan-500 resize-none h-40 transition-all font-medium text-gray-800" 
+                  placeholder="Ketik kritik, masukan, pertayaan, atau saran fitur di sini..."
+                  value={feedbackMsg}
+                  onChange={(e) => setFeedbackMsg(e.target.value)}
+                />
+              </div>
+              <button 
+                onClick={handleSendFeedback}
+                disabled={isSendingFeedback || !feedbackMsg.trim()}
+                className="w-full py-3 mt-4 bg-cyan-600 text-white rounded-xl font-bold text-lg hover:bg-cyan-700 hover:-translate-y-0.5 transition-all disabled:opacity-70 flex items-center justify-center gap-2 shadow-lg shadow-cyan-200"
+              >
+                {isSendingFeedback ? 'Mengirim Pesan...' : 'Kirim Ke WhatsApp Admin'}
+              </button>
+            </div>
+          </div>
+        );
+      case 'help':
+        return (
+          <div className="w-full max-w-3xl mx-auto bg-white rounded-2xl shadow-sm border border-gray-100 p-6 lg:p-8">
+            <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2 border-b pb-4">
+              <HelpCircle className="w-7 h-7 text-amber-500" /> Panduan & Pusat Bantuan
+            </h2>
+            <div className="space-y-8 text-gray-700">
+              <section className="bg-slate-50 p-6 rounded-xl border border-slate-100">
+                <h3 className="text-xl font-bold text-blue-900 mb-3 flex items-center gap-2">🚀 Apa itu {appConfig.appName}?</h3>
+                <p className="leading-relaxed font-medium"><strong>Garda Spendus</strong> adalah asisten pintar berbasis Artificial Intelligence (AI) yang dirancang secara khusus untuk mempermudah tugas para guru dan pendidik. Aplikasi ini membantu Anda merancang, menyusun, dan mengembangkan Rencana Pembelajaran Mendalam (RPM) yang jauh lebih kreatif, adaptif, dan komprehensif tanpa harus pusing memulainya dari lembar kosong.</p>
+              </section>
+
+              <section>
+                <h3 className="text-xl font-bold text-slate-800 mb-4 border-l-4 border-blue-500 pl-3">Cara Menggenerate Modul Ajar</h3>
+                <ul className="grid gap-3">
+                  <li className="flex gap-3">
+                    <span className="shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm">1</span>
+                    <span className="font-medium">Buka menu <strong>Buat Modul Ajar</strong> di panel sebelah kiri.</span>
+                  </li>
+                  <li className="flex gap-3">
+                    <span className="shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm">2</span>
+                    <span className="font-medium">Isi kelengkapan <strong>Form Rencana Pembelajaran</strong> seperti Fase pendidikan, Kelas, Topik yang dibawakan.</span>
+                  </li>
+                  <li className="flex gap-3">
+                    <span className="shrink-0 w-6 h-6 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-sm">!</span>
+                    <span className="font-medium text-amber-900 bg-amber-50 p-2 rounded w-full"><strong>TIPS PENTING:</strong> Kunci hasil RPP yang bagus terletak pada kelengkapan isian <em>Profil Karakteristik & Minat Siswa</em>. Semakin spesifik kondisi siswa Anda (misal: "Siswa kurang minat baca, suka visual", dll), semakin cerdas AI membuati solusinya di Modul!</span>
+                  </li>
+                  <li className="flex gap-3">
+                    <span className="shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm">3</span>
+                    <span className="font-medium">Klik tombol <strong>"Generate RPP AI"</strong> di bawah form.</span>
+                  </li>
+                  <li className="flex gap-3">
+                    <span className="shrink-0 w-6 h-6 rounded-full bg-green-100 text-green-700 flex items-center justify-center font-bold text-sm">4</span>
+                    <span className="font-medium">Tunggu proses AI dalam sekian detik, lalu Anda bisa me-review kembali serta Mengunduhnya menjadi file Ms.Word (DOCX).</span>
+                  </li>
+                </ul>
+              </section>
+              
+              <section>
+                <h3 className="text-xl font-bold text-slate-800 mb-4 border-l-4 border-purple-500 pl-3">Penjelasan Menu Navigasi</h3>
+                <div className="grid gap-4 mt-2">
+                  <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex gap-4 items-start hover:border-purple-300 transition-colors">
+                    <div className="p-3 bg-purple-100 text-purple-600 rounded-lg shrink-0"><History className="w-6 h-6" /></div>
+                    <div>
+                      <h4 className="font-bold text-slate-800 text-lg mb-1">Riwayat Aktivitas</h4>
+                      <p className="text-sm text-gray-600 font-medium">Fitur yang akan merekam aktivitas keseharian Anda seperti jejak kapan login terakhir, mengubah password, maupun history meng-generate RPP.</p>
+                    </div>
+                  </div>
+                  <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex gap-4 items-start hover:border-green-300 transition-colors">
+                    <div className="p-3 bg-green-100 text-green-600 rounded-lg shrink-0"><FileText className="w-6 h-6" /></div>
+                    <div>
+                      <h4 className="font-bold text-slate-800 text-lg mb-1">Dokumen Anda</h4>
+                      <p className="text-sm text-gray-600 font-medium">Meyimpan seluruh Modul Ajar dan RPP yang pernah berhasil Anda ciptakan dengan AI secara permanen. Anda dapat kembali sewaktu-waktu dan Mengunduh ulangnya.</p>
+                    </div>
+                  </div>
+                  <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex gap-4 items-start hover:border-cyan-300 transition-colors">
+                    <div className="p-3 bg-cyan-100 text-cyan-600 rounded-lg shrink-0"><MessageSquare className="w-6 h-6" /></div>
+                    <div>
+                      <h4 className="font-bold text-slate-800 text-lg mb-1">Kritik & Saran</h4>
+                      <p className="text-sm text-gray-600 font-medium">Ada request fitur? Aplikasi bermasalah? Atau sekedar memberikan masukan? Gunakan form di halaman ini untuk terhubung langsung dengan Developer.</p>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </div>
+        );
+      case 'generator':
+      default:
+        return (
+          <>
+            {!showOutput ? (
+              <div className="w-full max-w-6xl mx-auto">
+                <FormSection 
+                  rppData={rppData} 
+                  setRppData={setRppData} 
+                  validationError={validationError}
+                  onGenerateTP={handleGenerateTP}
+                  appConfig={appConfig}
+                  userMapel={currentUser.mapel}
+                  onShowIdeaModal={() => {
+                    if (captureAndValidateData()) {
+                      const validKeys = appConfig.apiKeys.filter(k => k && k.trim() !== '');
+                      if (validKeys.length === 0) {
+                        setValidationError("Kunci API belum dikonfigurasi oleh Admin.");
+                        setShowValidationPopup(true);
+                      } else {
+                        setShowIdeaModal(true);
+                      }
+                    }
+                  }}
+                />
+              </div>
+            ) : (
+              <div className="w-full max-w-6xl mx-auto">
+                <OutputSection 
+                  rppData={rppData} 
+                  setRppData={setRppData}
+                  apiKeys={appConfig.apiKeys}
+                  onBack={() => setShowOutput(false)}
+                  userId={currentUser.id}
+                />
+              </div>
+            )}
+          </>
+        );
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#f0f4f8] font-sans flex overflow-hidden">
-      {/* Sidebar */}
-      <aside className={`bg-white shadow-xl z-40 transition-all duration-300 flex flex-col h-screen shrink-0 ${isSidebarOpen ? 'w-64' : 'w-20'}`}>
-        <div className="p-4 flex items-center justify-between border-b border-gray-100 h-16">
-          {isSidebarOpen && (
-            <div className="flex items-center gap-2 overflow-hidden">
-              <img src={appConfig.appLogo} alt="Logo" className="h-8 w-8 object-contain shrink-0" />
-              <span className="font-bold text-blue-800 truncate">{appConfig.appName}</span>
+      {/* Sidebar - Dark theme for mismatching */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-30 transition-opacity lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+      <aside ref={sidebarRef} className={`bg-slate-900 border-r border-slate-800 shadow-xl z-40 transition-all duration-300 flex flex-col h-screen shrink-0 absolute lg:relative ${isSidebarOpen ? 'w-64 -translate-x-0 lg:w-64' : '-translate-x-full lg:translate-x-0 lg:w-20'}`}>
+        <div className="p-4 flex items-center justify-between border-b border-slate-800 h-16 w-full">
+          {(isSidebarOpen || (window.innerWidth >= 1024 && isSidebarOpen)) && (
+            <div className="flex items-center gap-2 overflow-hidden flex-1 cursor-pointer" onClick={() => setCurrentView('generator')}>
+              <img src={appConfig.appLogo} alt="Logo" className="h-8 w-8 object-contain shrink-0 bg-white rounded p-0.5" />
+              <span className="font-bold text-white truncate text-sm">{appConfig.appName}</span>
             </div>
           )}
-          <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 mx-auto shrink-0">
+          <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className={`p-2 rounded-lg hover:bg-slate-800 text-slate-300 transition-colors hidden lg:block ${!isSidebarOpen && 'mx-auto shrink-0'}`}>
             <Menu className="w-6 h-6" />
           </button>
         </div>
         
-        {/* Time Section - Moved below logo */}
-        <div className={`px-3 py-3 border-b border-gray-100 flex items-center gap-3 text-gray-600 ${!isSidebarOpen && 'justify-center'}`} title={format(currentTime, 'HH:mm:ss')}>
-          <Clock className="w-5 h-5 shrink-0 text-blue-500" />
-          {isSidebarOpen && (
-            <div className="overflow-hidden">
-              <p className="text-sm font-medium truncate">{format(currentTime, 'HH:mm:ss')}</p>
-              <p className="text-xs truncate">{format(currentTime, 'dd MMM yyyy', { locale: id })}</p>
-            </div>
-          )}
-        </div>
-        
         <div className="flex-1 overflow-y-auto py-4 flex flex-col gap-2 px-3">
-          {/* Profile Section */}
-          <div className={`p-3 rounded-xl bg-blue-50 border border-blue-100 flex flex-col ${isSidebarOpen ? 'items-start' : 'items-center'} mb-2`}>
-            <button onClick={() => setShowProfile(true)} className="flex items-center gap-3 w-full text-left" title="Profil Pengguna">
-              <div className="p-2 bg-blue-600 text-white rounded-full shrink-0">
-                <UserIcon className="w-5 h-5" />
-              </div>
-              {isSidebarOpen && (
-                <div className="overflow-hidden">
-                  <p className="text-sm font-bold text-gray-800 truncate">{getGreeting()},</p>
-                  <p className="text-sm font-bold text-gray-800 truncate">{currentUser.username}!</p>
-                  <p className="text-xs text-gray-500 truncate mt-1">{currentUser.namaSekolah || 'Sekolah Belum Diatur'}</p>
-                </div>
-              )}
+          <div className="flex flex-col mb-4 gap-1">
+            <button onClick={() => setCurrentView('generator')} className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${!isSidebarOpen && 'lg:justify-center'} ${currentView === 'generator' ? 'bg-blue-600/20 text-blue-400 font-medium' : 'hover:bg-slate-800 text-slate-400'}`} title="Buat Modul Ajar">
+              <div className="p-1 rounded bg-blue-500/10"><Menu className="w-4 h-4 shrink-0 text-blue-400" /></div>
+              {(isSidebarOpen || (window.innerWidth >= 1024 && isSidebarOpen)) && <span>Buat Modul Ajar</span>}
             </button>
-          </div>
-          
-          <div className="flex flex-col mb-4">
-            <button onClick={() => setShowHistory(true)} className={`flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 text-gray-700 transition-colors ${!isSidebarOpen && 'justify-center'}`} title="Riwayat Aktivitas">
-              <History className="w-5 h-5 shrink-0 text-purple-500" />
-              {isSidebarOpen && <span className="font-medium text-gray-700">Riwayat Aktivitas</span>}
+            <button onClick={() => setCurrentView('history')} className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${!isSidebarOpen && 'lg:justify-center'} ${currentView === 'history' ? 'bg-purple-600/20 text-purple-400 font-medium' : 'hover:bg-slate-800 text-slate-400'}`} title="Riwayat Aktivitas">
+              <div className="p-1 rounded bg-purple-500/10"><History className="w-4 h-4 shrink-0 text-purple-400" /></div>
+              {(isSidebarOpen || (window.innerWidth >= 1024 && isSidebarOpen)) && <span>Riwayat Aktivitas</span>}
             </button>
-            <button onClick={() => setShowDocuments(true)} className={`flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 text-gray-700 transition-colors mt-1 ${!isSidebarOpen && 'justify-center'}`} title="Dokumen Tersimpan">
-              <FileText className="w-5 h-5 shrink-0 text-green-500" />
-              {isSidebarOpen && <span className="font-medium text-gray-700">Dokumen</span>}
+            <button onClick={() => setCurrentView('documents')} className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${!isSidebarOpen && 'lg:justify-center'} ${currentView === 'documents' ? 'bg-emerald-600/20 text-emerald-400 font-medium' : 'hover:bg-slate-800 text-slate-400'}`} title="Dokumen Tersimpan">
+              <div className="p-1 rounded bg-emerald-500/10"><FileText className="w-4 h-4 shrink-0 text-emerald-400" /></div>
+              {(isSidebarOpen || (window.innerWidth >= 1024 && isSidebarOpen)) && <span>Dokumen Anda</span>}
             </button>
           </div>
 
-          <div className="mt-auto flex flex-col gap-2 pt-4 border-t border-gray-100">
-            <button onClick={() => setShowHelp(true)} className={`flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 text-gray-700 transition-colors ${!isSidebarOpen && 'justify-center'}`} title="Bantuan">
-              <HelpCircle className="w-5 h-5 shrink-0" />
-              {isSidebarOpen && <span className="font-medium">Bantuan</span>}
+          <div className="mt-auto flex flex-col gap-1 pt-4 border-t border-slate-800">
+            <button onClick={() => setCurrentView('feedback')} className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${!isSidebarOpen && 'lg:justify-center'} ${currentView === 'feedback' ? 'bg-cyan-600/20 text-cyan-400 font-medium' : 'hover:bg-slate-800 text-slate-400'}`} title="Kritik & Saran">
+              <MessageSquare className="w-5 h-5 shrink-0" />
+              {(isSidebarOpen || (window.innerWidth >= 1024 && isSidebarOpen)) && <span>Kritik & Saran</span>}
             </button>
-            <button onClick={onLogout} className={`flex items-center gap-3 p-3 rounded-lg hover:bg-red-50 text-red-600 transition-colors ${!isSidebarOpen && 'justify-center'}`} title="Keluar">
+            <button onClick={() => setCurrentView('help')} className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${!isSidebarOpen && 'lg:justify-center'} ${currentView === 'help' ? 'bg-amber-600/20 text-amber-400 font-medium' : 'hover:bg-slate-800 text-slate-400'}`} title="Bantuan">
+              <HelpCircle className="w-5 h-5 shrink-0" />
+              {(isSidebarOpen || (window.innerWidth >= 1024 && isSidebarOpen)) && <span>Bantuan</span>}
+            </button>
+            <button onClick={onLogout} className={`flex items-center gap-3 p-3 rounded-lg hover:bg-red-500/10 text-red-400 transition-colors ${!isSidebarOpen && 'lg:justify-center'}`} title="Keluar">
               <LogOut className="w-5 h-5 shrink-0" />
-              {isSidebarOpen && <span className="font-medium">Keluar</span>}
+              {(isSidebarOpen || (window.innerWidth >= 1024 && isSidebarOpen)) && <span>Keluar</span>}
             </button>
           </div>
         </div>
       </aside>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col h-screen overflow-hidden">
+      <div className="flex-1 flex flex-col h-screen overflow-hidden w-full lg:w-auto">
+        {/* Top Navbar */}
+        <header className="bg-white border-b border-gray-200 h-16 shrink-0 flex items-center justify-between px-4 sm:px-6 shadow-sm z-10 w-full relative">
+          <div className="flex items-center gap-3 overflow-hidden">
+            <button onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 rounded-lg hover:bg-slate-100 text-slate-600 transition-colors lg:hidden shrink-0">
+              <Menu className="w-6 h-6" />
+            </button>
+            <h1 className="text-lg font-bold text-slate-800 hidden sm:flex items-center gap-2 truncate">
+              {currentView === 'generator' && 'Generator Rencana Pembelajaran Mendalam (GARDA)'}
+              {currentView === 'profile' && 'Profil Pengguna'}
+              {currentView === 'history' && 'Riwayat Aktivitas'}
+              {currentView === 'documents' && 'Dokumen Tersimpan'}
+              {currentView === 'feedback' && 'Kritik & Saran'}
+              {currentView === 'help' && 'Pusat Bantuan'}
+            </h1>
+          </div>
+          
+          <div className="flex items-center gap-3 sm:gap-6 shrink-0">
+            <div className="hidden md:flex flex-col items-end border-r border-gray-200 pr-4 sm:pr-6">
+              <span className="text-sm font-bold text-slate-700 flex items-center gap-1.5">
+                <Clock className="w-4 h-4 text-blue-500" />
+                {format(currentTime, 'HH:mm:ss')}
+              </span>
+              <span className="text-xs font-medium text-slate-500">
+                {format(currentTime, 'dd MMM yyyy', { locale: id })}
+              </span>
+            </div>
+            
+            <button 
+              onClick={() => setCurrentView('profile')} 
+              className="flex items-center gap-3 text-left hover:bg-slate-50 p-1.5 rounded-xl transition-all border border-transparent hover:border-slate-200"
+              title="Ke Profil Pengguna"
+            >
+              <div className="hidden sm:block text-right">
+                <p className="text-xs font-medium text-slate-500">{getGreeting()},</p>
+                <p className="text-sm font-bold text-slate-800 truncate max-w-[150px]">{currentUser.username}</p>
+              </div>
+              <div className="h-10 w-10 shrink-0 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-lg shadow-blue-200 overflow-hidden border-2 border-white">
+                {currentUser.profile_picture ? (
+                  <img src={currentUser.profile_picture} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <UserIcon className="w-5 h-5" />
+                )}
+              </div>
+            </button>
+          </div>
+        </header>
+
         {/* Marquee Header */}
-        <div className="bg-slate-800 text-white py-2 relative overflow-hidden shrink-0 h-10 flex items-center">
-          <div className="whitespace-nowrap animate-marquee font-bold tracking-widest text-sm">
+        <div className="bg-slate-800 text-white py-1.5 relative overflow-hidden shrink-0 flex items-center">
+          <div className="whitespace-nowrap animate-marquee font-bold tracking-widest text-xs sm:text-sm">
             {appConfig.appName}
           </div>
         </div>
 
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-20">
-          {!showOutput ? (
-            <div className="w-full">
-              <FormSection 
-                rppData={rppData} 
-                setRppData={setRppData} 
-                validationError={validationError}
-                onGenerateTP={handleGenerateTP}
-                appConfig={appConfig}
-                userMapel={currentUser.mapel}
-                onShowIdeaModal={() => {
-                  if (captureAndValidateData()) {
-                    const validKeys = appConfig.apiKeys.filter(k => k && k.trim() !== '');
-                    if (validKeys.length === 0) {
-                      setValidationError("Kunci API belum dikonfigurasi oleh Admin.");
-                      setShowValidationPopup(true);
-                    } else {
-                      setShowIdeaModal(true);
-                    }
-                  }
-                }}
-              />
-            </div>
-          ) : (
-            <div className="w-full">
-              <OutputSection 
-                rppData={rppData} 
-                setRppData={setRppData}
-                apiKeys={appConfig.apiKeys}
-                onBack={() => setShowOutput(false)}
-                userId={currentUser.id}
-              />
-            </div>
-          )}
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-20 bg-slate-50 rounded-tl-xl border-t border-l border-slate-200/50 shadow-inner">
+          {renderMainContent()}
         </main>
       </div>
 
@@ -348,206 +930,64 @@ Untuk setiap materi pokok, buatkan 3 Tujuan Pembelajaran (TP) sesuai level kogni
         </div>
       )}
 
-      {/* Profile Modal */}
-      {showProfile && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-slate-50">
-              <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                <UserIcon className="w-6 h-6 text-blue-600" /> Profil Pengguna
-              </h2>
-              <button onClick={() => setShowProfile(false)} className="text-gray-400 hover:text-gray-600">
-                <X className="w-6 h-6" />
+      {/* Image Crop Modal */}
+      {showCropModal && imageSrc && (
+        <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden flex flex-col shadow-2xl">
+            <div className="p-4 border-b flex justify-between items-center bg-slate-50">
+              <h3 className="font-bold text-slate-800">Geser & Sesuaikan Foto</h3>
+              <button onClick={() => setShowCropModal(false)} className="text-slate-500 hover:text-slate-800">
+                <X className="w-5 h-5" />
               </button>
             </div>
-            
-            <div className="p-6 overflow-y-auto flex-1">
-              {/* Change Password Section */}
-              <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                  <Key className="w-5 h-5 text-amber-500" /> Ubah Password
-                </h3>
-                <form onSubmit={handleChangePassword} className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Password Baru</label>
-                    <input 
-                      type="password" 
-                      className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" 
-                      value={newPassword}
-                      onChange={e => setNewPassword(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Konfirmasi Password</label>
-                    <input 
-                      type="password" 
-                      className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" 
-                      value={confirmPassword}
-                      onChange={e => setConfirmPassword(e.target.value)}
-                      required
-                    />
-                  </div>
-                  {passwordMsg && (
-                    <div className={`text-sm p-2 rounded ${passwordMsg.includes('berhasil') ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
-                      {passwordMsg}
-                    </div>
-                  )}
-                  <button 
-                    type="submit" 
-                    disabled={isChangingPassword}
-                    className="w-full py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-70"
-                  >
-                    {isChangingPassword ? 'Menyimpan...' : 'Simpan Password'}
-                  </button>
-                </form>
+            <div className="relative w-full h-[400px] bg-gray-900">
+              <Cropper
+                image={imageSrc}
+                crop={crop}
+                zoom={zoom}
+                aspect={1}
+                cropShape="round"
+                showGrid={false}
+                onCropChange={setCrop}
+                onZoomChange={setZoom}
+                onCropComplete={onCropComplete}
+              />
+            </div>
+            <div className="p-4 bg-slate-50 border-t flex flex-col gap-4">
+              <div className="flex items-center gap-4">
+                <span className="text-sm font-medium text-slate-700 shrink-0">Zoom</span>
+                <input
+                  type="range"
+                  value={zoom}
+                  min={1}
+                  max={3}
+                  step={0.1}
+                  aria-labelledby="Zoom"
+                  onChange={(e) => setZoom(Number(e.target.value))}
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                />
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCropModal(false)}
+                  className="px-4 py-2 rounded-lg font-medium text-slate-600 hover:bg-slate-200 transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveCroppedImage}
+                  className="px-6 py-2 rounded-lg font-bold text-white bg-blue-600 hover:bg-blue-700 transition-colors"
+                >
+                  Simpan Foto
+                </button>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* History Modal */}
-      {showHistory && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-slate-50">
-              <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                <History className="w-6 h-6 text-purple-600" /> Riwayat Aktivitas & Dokumen
-              </h2>
-              <button onClick={() => setShowHistory(false)} className="text-gray-400 hover:text-gray-600">
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-            
-            <div className="p-6 overflow-y-auto flex-1">
-              <div className="space-y-4">
-                {userHistory.length === 0 ? (
-                  <p className="text-gray-500 italic text-center py-8">Belum ada riwayat aktivitas.</p>
-                ) : (
-                  userHistory.map((item, idx) => (
-                    <div key={idx} className="bg-gray-50 p-4 rounded-xl border border-gray-100 hover:border-purple-200 transition-colors">
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="flex items-center gap-2">
-                          <div className={`p-2 rounded-lg ${item.activity_type === 'generate' ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}`}>
-                            {item.activity_type === 'generate' ? <History className="w-4 h-4" /> : <UserIcon className="w-4 h-4" />}
-                          </div>
-                          <span className={`font-semibold text-lg ${item.activity_type === 'generate' ? 'text-purple-700' : 'text-blue-700'}`}>
-                            {item.activity_type === 'generate' ? 'Generate Dokumen RPP' : 'Login'}
-                          </span>
-                        </div>
-                        <span className="text-sm font-medium text-gray-500 bg-white px-2 py-1 rounded shadow-sm">
-                          {format(new Date(item.created_at), 'dd MMM yyyy HH:mm', { locale: id })}
-                        </span>
-                      </div>
-                      {item.details && (
-                        <div className="mt-3 pl-10">
-                          <p className="text-gray-700 font-medium">{item.details}</p>
-                        </div>
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Documents Modal */}
-      {showDocuments && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-slate-50">
-              <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                <FileText className="w-6 h-6 text-green-600" /> Dokumen Tersimpan
-              </h2>
-              <button onClick={() => setShowDocuments(false)} className="text-gray-400 hover:text-gray-600">
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-            
-            <div className="p-6 overflow-y-auto flex-1">
-              {userDocuments.length === 0 ? (
-                <div className="text-center py-12">
-                  <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500 font-medium">Belum ada dokumen yang disimpan.</p>
-                  <p className="text-sm text-gray-400 mt-2">Generate RPP untuk menyimpan dokumen di sini.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {userDocuments.map((doc) => (
-                    <div key={doc.id} className="bg-white border text-left border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow flex flex-col items-start gap-3">
-                      <div className="flex items-start justify-between w-full">
-                        <div className="flex items-center gap-2">
-                          <div className="p-2 bg-green-100 text-green-700 rounded-lg">
-                            <FileText className="w-5 h-5" />
-                          </div>
-                          <div>
-                            <h3 className="font-bold text-gray-800">{doc.title}</h3>
-                            <p className="text-xs text-gray-500">{format(new Date(doc.created_at), 'dd MMMM yyyy, HH:mm', { locale: id })}</p>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex gap-2 w-full mt-2">
-                        <button 
-                          onClick={async () => {
-                            const fullDoc = await getDocumentById(doc.id);
-                            if (fullDoc && fullDoc.content) {
-                              // Re-use logic to download word
-                              const wordDocument = `
-                                <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-                                <head>
-                                  <meta charset='utf-8'>
-                                  <title>Export HTML To Doc</title>
-                                  <style>
-                                    @page WordSection1 { size: 21cm 29.7cm; margin: 2cm; }
-                                    div.WordSection1 { page: WordSection1; }
-                                    body { font-family: "Times New Roman", Times, serif; font-size: 11pt; line-height: 1.5; color: windowtext; }
-                                    table { border-collapse: collapse; width: 100%; margin: 10px 0; }
-                                    td, th { border: 1px solid windowtext; padding: 5px; vertical-align: top; }
-                                    h2 { font-size: 14pt; font-weight: bold; text-align: center; }
-                                    h3 { font-size: 12pt; font-weight: bold; border-bottom: 1px solid windowtext; }
-                                    h4, h5 { font-size: 11pt; font-weight: bold; }
-                                    p { text-align: justify; margin: 0 0 10px 0; }
-                                  </style>
-                                </head>
-                                <body>
-                                  <div class="WordSection1">
-                                    ${fullDoc.content}
-                                  </div>
-                                </body>
-                                </html>
-                              `;
-                              const blob = new Blob(['\ufeff', wordDocument], { type: 'application/msword;charset=utf-8' });
-                              const downloadLink = document.createElement("a");
-                              document.body.appendChild(downloadLink);
-                              const filename = `${doc.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}`;
-                              const url = URL.createObjectURL(blob);
-                              downloadLink.href = url;
-                              downloadLink.download = `${filename}.doc`;
-                              downloadLink.click();
-                              setTimeout(() => {
-                                  document.body.removeChild(downloadLink);
-                                  window.URL.revokeObjectURL(url);
-                              }, 100);
-                            }
-                          }} 
-                          className="flex-1 flex justify-center items-center gap-2 bg-blue-50 text-blue-700 py-2 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium"
-                        >
-                          <Download className="w-4 h-4" /> Unduh (Word)
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
       {showIdeaModal && <IdeaModal onClose={() => setShowIdeaModal(false)} rppData={rppData} apiKeys={appConfig.apiKeys} />}
     </div>
   );

@@ -786,12 +786,11 @@ async function createAsesmenAkhirAndLKPD(data: RppData, topicData: any, apiKeys:
 
         <h4 style="font-weight: bold; font-size: 11pt; margin-bottom: 0.5rem;">${lkpdData.alat_bahan && lkpdData.alat_bahan.length > 0 ? 'E' : 'D'}. Ruang Diskusi / Lembar Kerja</h4>
         <ol style="margin-left: 1.5rem; margin-bottom: 2rem; text-align: justify;">
-          ${(lkpdData.pertanyaan_diskusi || []).map((p:string) => `<li style="margin-bottom: 2.5rem;">${p}<div style="border: 1px solid #000; height: 150px; margin-top: 0.5rem; padding: 0.5rem;"></div></li>`).join('')}
+          ${(lkpdData.pertanyaan_diskusi || []).map((p:string) => `<li style="margin-bottom: 1.5rem;">${p}<table style="width: 100%; border-collapse: collapse; margin-top: 0.5rem;" border="1"><tbody><tr><td style="height: 150px; border: 1px solid #000;"></td></tr></tbody></table></li>`).join('')}
         </ol>
         
         <h4 style="font-weight: bold; font-size: 11pt; margin-bottom: 0.5rem;">${lkpdData.alat_bahan && lkpdData.alat_bahan.length > 0 ? 'F' : 'E'}. Kesimpulan</h4>
-        <div style="border: 1px solid #000; height: 150px; padding: 0.5rem;">
-        </div>
+        <table style="width: 100%; border-collapse: collapse; margin-top: 0.5rem;" border="1"><tbody><tr><td style="height: 150px; border: 1px solid #000;"></td></tr></tbody></table>
       </div>
     `;
   }

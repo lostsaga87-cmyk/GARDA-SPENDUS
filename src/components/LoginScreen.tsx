@@ -12,12 +12,13 @@ export default function LoginScreen({ onLogin, onGoToRegister, appConfig }: { on
   // Contact Admin modal state
   const [showContactModal, setShowContactModal] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
-  const [userNip, setUserNip] = useState('');
+  const [userNama, setUserNama] = useState('');
+  const [userSekolah, setUserSekolah] = useState('');
   const [isSending, setIsSending] = useState(false);
 
   const handleContactAdmin = async () => {
-    if (!userNip) {
-      alert("NIP/Username Anda wajib diisi.");
+    if (!userNama || !userSekolah) {
+      alert("Nama Lengkap dan Asal Sekolah wajib diisi.");
       return;
     }
 
@@ -25,7 +26,7 @@ export default function LoginScreen({ onLogin, onGoToRegister, appConfig }: { on
     try {
       const formData = new FormData();
       formData.append('target', '08992124036'); // Hardcoded Admin WhatsApp Number
-      formData.append('message', `Halo Admin, saya pengguna dengan NIP *${userNip}* memohon untuk segera disetujui (approve) akunnya di aplikasi *${appConfig.appName}*. Terima kasih.`);
+      formData.append('message', `Halo Admin, saya pengguna dengan Nama *${userNama}* dari sekolah *${userSekolah}* memohon untuk segera disetujui (approve) akunnya di aplikasi *${appConfig.appName}*. Terima kasih.`);
       
       const response = await fetch("https://api.fonnte.com/send", {
         method: "POST",
@@ -214,15 +215,27 @@ export default function LoginScreen({ onLogin, onGoToRegister, appConfig }: { on
               <p className="text-sm text-gray-600">
                 Pesan WhatsApp akan dikirim otomatis ke Admin untuk mempercepat persetujuan akun Anda.
               </p>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">NIP Anda</label>
-                <input 
-                  type="text" 
-                  className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-green-500" 
-                  placeholder="Masukkan NIP Anda"
-                  value={userNip}
-                  onChange={(e) => setUserNip(e.target.value)}
-                />
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Nama Lengkap</label>
+                  <input 
+                    type="text" 
+                    className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-green-500" 
+                    placeholder="Masukkan Nama Lengkap Anda"
+                    value={userNama}
+                    onChange={(e) => setUserNama(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Asal Sekolah</label>
+                  <input 
+                    type="text" 
+                    className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-green-500" 
+                    placeholder="Masukkan Asal Sekolah Anda"
+                    value={userSekolah}
+                    onChange={(e) => setUserSekolah(e.target.value)}
+                  />
+                </div>
               </div>
               <button 
                 onClick={handleContactAdmin}

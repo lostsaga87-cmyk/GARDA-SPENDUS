@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Hash, Lock, UserPlus, MessageCircle, X, HelpCircle, Eye, EyeOff, LogIn } from 'lucide-react';
 import { loginUser, AppConfig } from '../lib/store';
+import Swal from 'sweetalert2';
 
 export default function LoginScreen({ onLogin, onGoToRegister, appConfig }: { onLogin: (user: any) => void, onGoToRegister: () => void, appConfig: AppConfig }) {
   const [nip, setNip] = useState('');
@@ -18,7 +19,11 @@ export default function LoginScreen({ onLogin, onGoToRegister, appConfig }: { on
 
   const handleContactAdmin = async () => {
     if (!userNama || !userSekolah) {
-      alert("Nama Lengkap dan Asal Sekolah wajib diisi.");
+      Swal.fire({
+        icon: 'warning',
+        title: 'Oops...',
+        text: 'Nama Lengkap dan Asal Sekolah wajib diisi.',
+      });
       return;
     }
 
@@ -38,14 +43,26 @@ export default function LoginScreen({ onLogin, onGoToRegister, appConfig }: { on
       
       const result = await response.json();
       if (result.status) {
-        alert("Pesan berhasil terkirim via WhatsApp ke Admin!");
+        Swal.fire({
+          icon: 'success',
+          title: 'Terkirim!',
+          text: 'Pesan berhasil terkirim via WhatsApp ke Admin!',
+        });
         setShowContactModal(false);
       } else {
-        alert("Gagal mengirim pesan: " + (result.reason || "Terjadi kesalahan."));
+        Swal.fire({
+          icon: 'error',
+          title: 'Gagal',
+          text: "Gagal mengirim pesan: " + (result.reason || "Terjadi kesalahan."),
+        });
       }
     } catch (err) {
       console.error(err);
-      alert("Terjadi kesalahan sistem saat menghubungi server Fonnte.");
+      Swal.fire({
+        icon: 'error',
+        title: 'Error Jaringan',
+        text: 'Terjadi kesalahan sistem saat menghubungi server Fonnte.',
+      });
     } finally {
       setIsSending(false);
     }

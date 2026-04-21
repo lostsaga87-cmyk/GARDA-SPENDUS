@@ -1,6 +1,7 @@
 import React from 'react';
 import { RppData } from '../types';
 import { AppConfig } from '../lib/store';
+import Swal from 'sweetalert2';
 
 interface FormSectionProps {
   rppData: RppData;
@@ -54,7 +55,11 @@ export default function FormSection({ rppData, setRppData, validationError, onGe
     if (rppData.fase && appConfig.cpData[rppData.fase]) {
       handleChange('cp_full_text', appConfig.cpData[rppData.fase]);
     } else {
-      alert('Pilih Fase terlebih dahulu atau CP untuk fase ini belum dikonfigurasi oleh Admin.');
+      Swal.fire({
+        icon: 'info',
+        title: 'Info',
+        text: 'Pilih Fase terlebih dahulu atau CP untuk fase ini belum dikonfigurasi oleh Admin.',
+      });
     }
   };
 

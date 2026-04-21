@@ -24,6 +24,7 @@
     "react-dom": "^19.0.0",
     "react-easy-crop": "^5.5.7",
     "recharts": "^3.8.1",
+    "sweetalert2": "^11.26.24",
     "vite": "^6.2.0"
   },
   "devDependencies": {

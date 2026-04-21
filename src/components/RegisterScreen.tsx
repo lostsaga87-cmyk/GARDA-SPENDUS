@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { User, Lock, School, Phone, Hash, ArrowLeft, ChevronDown, Check } from 'lucide-react';
 import { registerUser } from '../lib/store';
+import Swal from 'sweetalert2';
 
 const SUBJECTS = [
   'Bahasa Indonesia', 'Bahasa Inggris', 'Bahasa Daerah', 'Matematika', 
@@ -60,12 +61,20 @@ export default function RegisterScreen({ onRegister, onCancel, appConfig }: any)
     
     try {
       await registerUser(formData);
-      onRegister();
+      Swal.fire({
+        icon: 'success',
+        title: 'Pendaftaran Berhasil!',
+        text: 'Akun Anda berhasil didaftarkan dan menunggu persetujuan Admin.',
+      }).then(() => {
+        onRegister();
+      });
     } catch (err: any) {
       if (err.code === '23505') {
         setError('NIP atau Nama Pengguna sudah digunakan. Silakan pilih yang lain.');
+        Swal.fire({icon: 'warning', title: 'Oops...', text: 'NIP atau Nama Pengguna sudah digunakan!'});
       } else {
         setError('Terjadi kesalahan saat mendaftar. Silakan coba lagi.');
+        Swal.fire({icon: 'error', title: 'Gagal', text: 'Terjadi kesalahan sistem saat mendaftar!'});
       }
       console.error(err);
     } finally {

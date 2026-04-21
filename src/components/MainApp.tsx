@@ -11,6 +11,7 @@ import { AppConfig, User, logActivity, getUserHistory, updatePassword, getUserDo
 import { User as UserIcon, Clock, History, Key, X, Check, Menu, HelpCircle, LogOut, FileText, Download, MessageSquare, ChevronDown, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
+import Swal from 'sweetalert2';
 
 const SUBJECTS = [
   'Bahasa Indonesia', 'Bahasa Inggris', 'Bahasa Daerah', 'Matematika', 
@@ -115,7 +116,11 @@ export default function MainApp({ onLogout, appConfig, currentUser }: { onLogout
 
   const handleSendFeedback = async () => {
     if (!feedbackMsg.trim()) {
-      alert("Pesan kritik/saran tidak boleh kosong.");
+      Swal.fire({
+        icon: 'warning',
+        title: 'Oops...',
+        text: 'Pesan kritik/saran tidak boleh kosong.',
+      });
       return;
     }
 
@@ -135,14 +140,26 @@ export default function MainApp({ onLogout, appConfig, currentUser }: { onLogout
       
       const result = await response.json();
       if (result.status) {
-        alert("Kritik dan Saran berhasil dikirimkan via WhatsApp ke Admin. Terima kasih!");
+        Swal.fire({
+          icon: 'success',
+          title: 'Berhasil!',
+          text: 'Kritik dan Saran berhasil dikirimkan via WhatsApp ke Admin. Terima kasih!',
+        });
         setFeedbackMsg('');
       } else {
-        alert("Gagal mengirim pesan: " + (result.reason || "Terjadi kesalahan."));
+        Swal.fire({
+          icon: 'error',
+          title: 'Gagal',
+          text: "Gagal mengirim pesan: " + (result.reason || "Terjadi kesalahan."),
+        });
       }
     } catch (err) {
       console.error(err);
-      alert("Terjadi kesalahan sistem saat menghubungi server.");
+      Swal.fire({
+        icon: 'error',
+        title: 'Error Jaringan',
+        text: 'Terjadi kesalahan sistem saat menghubungi server.',
+      });
     } finally {
       setIsSendingFeedback(false);
     }
@@ -280,7 +297,11 @@ Untuk setiap materi pokok, buatkan 3 Tujuan Pembelajaran (TP) sesuai level kogni
       setShowOutput(true);
     } catch (error: any) {
       console.error("Error generating TPs:", error);
-      alert(`Gagal menganalisis CP dengan AI. Detail: ${error.message}`);
+      Swal.fire({
+        icon: 'error',
+        title: 'Analisis Gagal',
+        text: `Gagal menganalisis CP dengan AI. Detail: ${error.message}`,
+      });
     } finally {
       setIsGenerating(false);
     }
@@ -350,7 +371,11 @@ Untuk setiap materi pokok, buatkan 3 Tujuan Pembelajaran (TP) sesuai level kogni
     if (!file) return;
 
     if (file.size > 1 * 1024 * 1024) {
-      alert("Ukuran foto maksimal 1MB. Silakan pilih foto yang lebih kecil.");
+      Swal.fire({
+        icon: 'warning',
+        title: 'File Terlalu Besar',
+        text: 'Ukuran foto maksimal 1MB. Silakan pilih foto yang lebih kecil.',
+      });
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
@@ -373,7 +398,11 @@ Untuk setiap materi pokok, buatkan 3 Tujuan Pembelajaran (TP) sesuai level kogni
       }
     } catch (e) {
       console.error(e);
-      alert('Gagal memotong gambar.');
+      Swal.fire({
+        icon: 'error',
+        title: 'Gagal',
+        text: 'Gagal memotong gambar.',
+      });
     }
   };
 
@@ -697,11 +726,31 @@ Untuk setiap materi pokok, buatkan 3 Tujuan Pembelajaran (TP) sesuai level kogni
                         <Download className="w-5 h-5" /> Unduh
                       </button>
                       <button 
-                        onClick={async () => {
-                          if (confirm("Apakah Anda yakin ingin menghapus dokumen ini?")) {
-                            await deleteDocument(doc.id);
-                            getUserDocuments(currentUser.id).then(docs => setUserDocuments(docs));
-                          }
+                        onClick={() => {
+                          Swal.fire({
+                            title: 'Apakah Anda yakin?',
+                            text: "Dokumen yang dihapus tidak dapat dikembalikan!",
+                            icon: 'warning',
+                            showCancelButton: true,
+                            confirmButtonColor: '#d33',
+                            cancelButtonColor: '#3085d6',
+                            confirmButtonText: 'Ya, Hapus!',
+                            cancelButtonText: 'Batal'
+                          }).then(async (result) => {
+                            if (result.isConfirmed) {
+                              try {
+                                await deleteDocument(doc.id);
+                                getUserDocuments(currentUser.id).then(docs => setUserDocuments(docs));
+                                Swal.fire(
+                                  'Terhapus!',
+                                  'Dokumen Anda telah dihapus.',
+                                  'success'
+                                );
+                              } catch (e) {
+                                Swal.fire('Error', 'Gagal menghapus dokumen', 'error');
+                              }
+                            }
+                          })
                         }}
                         className="flex-none flex justify-center items-center bg-red-50 text-red-600 p-2.5 rounded-lg hover:bg-red-100 hover:text-red-700 transition-colors border border-red-200"
                         title="Hapus Dokumen"

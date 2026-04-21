@@ -4,6 +4,7 @@ import { AppConfig, User, getAppConfig, updateAppConfig, getUsers, updateUserSta
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { format, parseISO, subDays } from 'date-fns';
 import { id } from 'date-fns/locale';
+import Swal from 'sweetalert2';
 
 export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -62,11 +63,20 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     if (config) {
       try {
         await updateAppConfig(config);
-        setSaveMessage('Konfigurasi berhasil disimpan!');
-        setTimeout(() => setSaveMessage(''), 3000);
+        Swal.fire({
+          icon: 'success',
+          title: 'Tersimpan',
+          text: 'Konfigurasi berhasil disimpan!',
+          timer: 2000,
+          showConfirmButton: false
+        });
       } catch (err) {
         console.error('Error saving config:', err);
-        alert('Gagal menyimpan konfigurasi.');
+        Swal.fire({
+          icon: 'error',
+          title: 'Gagal',
+          text: 'Gagal menyimpan konfigurasi.',
+        });
       }
     }
   };
@@ -76,9 +86,23 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       await updateUserStatus(userId, status);
       const updatedUsers = usersList.map(u => u.id === userId ? { ...u, status } : u);
       setUsersList(updatedUsers);
+      
+      const statusText = status === 'approved' ? 'disetujui' : 'ditolak';
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'success',
+        title: `Pengguna berhasil ${statusText}`,
+        showConfirmButton: false,
+        timer: 3000
+      });
     } catch (err) {
       console.error('Error updating user status:', err);
-      alert('Gagal memperbarui status pengguna.');
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Gagal memperbarui status pengguna.',
+      });
     }
   };
 

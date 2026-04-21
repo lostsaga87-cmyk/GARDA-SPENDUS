@@ -8,3 +8,220 @@
 .animate-marquee {
   animation: marquee 15s linear infinite;
 }
+
+/* --- DARK MODE SHORTCUTS --- */
+html.dark {
+  color-scheme: dark;
+  background-color: #0f172a;
+  color: #f1f5f9;
+}
+html.dark body {
+  background-color: #0f172a;
+}
+html.dark .bg-white {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+}
+html.dark .text-gray-800, html.dark .text-slate-800, html.dark .text-gray-900 {
+  color: #f1f5f9 !important;
+}
+html.dark .text-gray-700, html.dark .text-slate-700 {
+  color: #e2e8f0 !important;
+}
+html.dark .text-gray-600, html.dark .text-slate-600 {
+  color: #cbd5e1 !important;
+}
+html.dark .text-gray-500, html.dark .text-slate-500 {
+  color: #94a3b8 !important;
+}
+html.dark .bg-gray-50, html.dark .bg-slate-50, html.dark .bg-gray-100 {
+  background-color: #0f172a !important;
+}
+html.dark .border-gray-200, html.dark .border-gray-300, html.dark .border-slate-200, html.dark .border-gray-100 {
+  border-color: #334155 !important;
+}
+/* Exception for primary buttons so they stay looking good */
+html.dark .bg-blue-600 { background-color: #2563eb !important; color: white !important; }
+
+/* Let's keep the document preview looking like a white piece of paper even in Dark Mode */
+html.dark .rpp-final-container {
+  background-color: white !important;
+  color: black !important;
+  border-color: #ccc !important;
+}
+html.dark .rpp-final-container * {
+  color: black !important;
+}
+
+/* --- DARK MODE TOGGLE (From Uiverse.io by Madflows) --- */
+.toggle-switch {
+  position: relative;
+  width: 100px;
+  height: 50px;
+  --light: #d8dbe0;
+  --dark: #28292c;
+  --link: rgb(27, 129, 112);
+  --link-hover: rgb(24, 94, 82);
+}
+
+/* Custom Floating Animation */
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+}
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.switch-label {
+  position: absolute;
+  width: 100%;
+  height: 50px;
+  background-color: var(--dark);
+  border-radius: 25px;
+  cursor: pointer;
+  border: 3px solid var(--dark);
+}
+
+.checkbox {
+  position: absolute;
+  display: none;
+}
+
+.slider {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 25px;
+  -webkit-transition: 0.3s;
+  transition: 0.3s;
+}
+
+.checkbox:checked ~ .slider {
+  background-color: var(--light);
+}
+
+.slider::before {
+  content: "";
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  -webkit-box-shadow: inset 12px -4px 0px 0px var(--light);
+  box-shadow: inset 12px -4px 0px 0px var(--light);
+  background-color: var(--dark);
+  -webkit-transition: 0.3s;
+  transition: 0.3s;
+}
+
+.checkbox:checked ~ .slider::before {
+  -webkit-transform: translateX(50px);
+  -ms-transform: translateX(50px);
+  transform: translateX(50px);
+  background-color: var(--dark);
+  -webkit-box-shadow: none;
+  box-shadow: none;
+}
+
+/* --- LOADER (From Uiverse.io by dexter-st) --- */
+.loader-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 180px;
+  height: 180px;
+  font-family: "Inter", sans-serif;
+  font-size: 1.2em;
+  font-weight: 300;
+  /* Updated color so it shows properly on background */
+  color: #471eec; 
+  border-radius: 50%;
+  background-color: transparent;
+  user-select: none;
+}
+
+/* Make letter white in dark mode */
+html.dark .loader-wrapper {
+  color: white;
+}
+
+.loader-element {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  aspect-ratio: 1 / 1; /* Note: I changed class from .loader to .loader-element to avoid conflict with potential other tailwind classes */
+  border-radius: 50%;
+  background-color: transparent;
+  animation: loader-rotate 2s linear infinite;
+  z-index: 0;
+}
+
+@keyframes loader-rotate {
+  0% {
+    transform: rotate(90deg);
+    box-shadow:
+      0 10px 20px 0 #fff inset,
+      0 20px 30px 0 #ad5fff inset,
+      0 60px 60px 0 #471eec inset;
+  }
+  50% {
+    transform: rotate(270deg);
+    box-shadow:
+      0 10px 20px 0 #fff inset,
+      0 20px 10px 0 #d60a47 inset,
+      0 40px 60px 0 #311e80 inset;
+  }
+  100% {
+    transform: rotate(450deg);
+    box-shadow:
+      0 10px 20px 0 #fff inset,
+      0 20px 30px 0 #ad5fff inset,
+      0 60px 60px 0 #471eec inset;
+  }
+}
+
+/* In dark mode we tweak the white highlight so it looks better */
+html.dark [style*="loader-rotate"] {
+  box-shadow: 0 10px 20px 0 #1e293b inset, 0 20px 30px 0 #ad5fff inset, 0 60px 60px 0 #471eec inset;
+}
+
+.loader-letter {
+  display: inline-block;
+  opacity: 0.4;
+  transform: translateY(0);
+  animation: loader-letter-anim 2s infinite;
+  z-index: 1;
+  border-radius: 50ch;
+  border: none;
+}
+
+.loader-letter:nth-child(1) { animation-delay: 0s; }
+.loader-letter:nth-child(2) { animation-delay: 0.1s; }
+.loader-letter:nth-child(3) { animation-delay: 0.2s; }
+.loader-letter:nth-child(4) { animation-delay: 0.3s; }
+.loader-letter:nth-child(5) { animation-delay: 0.4s; }
+.loader-letter:nth-child(6) { animation-delay: 0.5s; }
+.loader-letter:nth-child(7) { animation-delay: 0.6s; }
+.loader-letter:nth-child(8) { animation-delay: 0.7s; }
+.loader-letter:nth-child(9) { animation-delay: 0.8s; }
+.loader-letter:nth-child(10) { animation-delay: 0.9s; }
+
+@keyframes loader-letter-anim {
+  0%, 100% {
+    opacity: 0.4;
+    transform: translateY(0);
+  }
+  20% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+  40% {
+    opacity: 0.7;
+    transform: translateY(0);
+  }
+}

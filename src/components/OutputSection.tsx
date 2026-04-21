@@ -3,6 +3,7 @@ import { Printer, FileText, Edit, Save, ArrowLeft, Download } from 'lucide-react
 import { RppData } from '../types';
 import { makeApiCall } from '../lib/api';
 import { saveDocument } from '../lib/store';
+import MiniGame from './MiniGame';
 
 interface OutputSectionProps {
   rppData: RppData;
@@ -54,16 +55,26 @@ export default function OutputSection({ rppData, setRppData, apiKeys, onBack, us
         const [
           asesmenAwalHtml,
           asesmenProsesHtml,
-          asesmenAkhirHtml
+          asesmenAkhirResult
         ] = await Promise.all([
           createAsesmenAwal(rppData, currentTopicData, apiKeys),
           createAsesmenProses(rppData, currentTopicData, apiKeys),
-          createAsesmenAkhir(rppData, currentTopicData, apiKeys)
+          createAsesmenAkhirAndLKPD(rppData, currentTopicData, apiKeys)
         ]);
+        
+        let asesmenAkhirHtml = "";
+        let lkpdHtml = "";
+        
+        if (typeof asesmenAkhirResult === 'object') {
+           asesmenAkhirHtml = asesmenAkhirResult.asesmenAkhirHtml || "";
+           lkpdHtml = asesmenAkhirResult.lkpdHtml || "";
+        } else {
+           asesmenAkhirHtml = asesmenAkhirResult || "";
+        }
 
         finalHtml += `
-          <div class="rpp-section mb-12" style="margin-bottom: 3rem;">
-            <h2 style="text-align: center; font-weight: bold; font-size: 14pt; margin-bottom: 1.5rem;">RENCANA PERANGKAT PEMBELAJARAN</h2>
+          <div class="rpp-section mb-12" style="margin-bottom: 3rem; ${i > 0 ? 'page-break-before: always; break-before: page;' : ''}">
+            <h2 style="text-align: center; font-weight: bold; font-size: 14pt; margin-bottom: 1.5rem;">RENCANA PEMBELAJARAN MENDALAM (RPM)</h2>
             ${createHeaderTable(rppData)}
             
             <h3 style="font-weight: bold; font-size: 12pt; margin-top: 1.5rem; margin-bottom: 0.5rem; border-bottom: 1px solid #000; padding-bottom: 0.25rem;">Identifikasi</h3>
@@ -85,8 +96,9 @@ export default function OutputSection({ rppData, setRppData, apiKeys, onBack, us
             ${asesmenAkhirHtml}
 
             ${createTandaTangan(rppData)}
+            ${lkpdHtml}
           </div>
-          ${i < meetingsToGenerate - 1 ? '<br clear="all" style="page-break-before: always; mso-break-type: section-break" />' : ''}`;
+          ${i < meetingsToGenerate - 1 ? '<div style="page-break-after: always; break-after: page;"></div><br clear="all" style="mso-break-type: section-break" />' : ''}`;
       }
 
       finalHtml += `</div>`;
@@ -403,11 +415,10 @@ export default function OutputSection({ rppData, setRppData, apiKeys, onBack, us
 
       {/* RPP Output */}
       {step === 6 && (
-        <section className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+        <section className={`bg-white rounded-xl shadow-sm border border-gray-100 relative ${loading ? 'min-h-[400px] flex items-center justify-center p-0 overflow-hidden' : 'p-6'}`}>
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
-              <p className="text-gray-600">Sedang membuat Rencana Perangkat Pembelajaran yang komprehensif... Proses ini akan memakan waktu beberapa saat.</p>
+            <div className="absolute inset-0 flex flex-col items-center justify-center p-6 bg-slate-50 z-20">
+               <MiniGame />
             </div>
           ) : error ? (
             <div className="p-4 border-l-4 border-red-500 bg-red-50 rounded-r-lg">
@@ -652,37 +663,140 @@ async function createAsesmenProses(data: RppData, topicData: any, apiKeys: strin
   return `<h4 style="font-weight: bold; font-size: 11pt; margin-top: 1rem; margin-bottom: 0.5rem;">Asesmen pada Proses Pembelajaran:</h4>${observasiHtml}${kinerjaHtml}${peerHtml}`;
 }
 
-async function createAsesmenAkhir(data: RppData, topicData: any, apiKeys: string[]) {
-  const prompt = `Anda adalah ahli asesmen. Buat draf asesmen akhir pembelajaran untuk topik "${topicData.topic}". Format jawaban dalam JSON dengan dua kunci utama: 'penilaian_proyek' dan 'portofolio'. Untuk 'penilaian_proyek', berikan 'fokus_penilaian', 'contoh_proyek' (jelaskan detailnya), dan 'rubrik' (array objek dengan kunci 'aspek', 'sangat_baik', 'baik', 'cukup', 'kurang'). Untuk 'portofolio', berikan 'fokus_penilaian', 5 'contoh_isi' (array), dan 'rubrik' (array objek dengan kunci 'aspek', 'sangat_baik', 'baik', 'cukup', 'kurang').`;
+async function createAsesmenAkhirAndLKPD(data: RppData, topicData: any, apiKeys: string[]): Promise<{asesmenAkhirHtml: string, lkpdHtml: string}> {
+  const tpsJoined = topicData.tps.map((t:any) => t.text).join(', ');
+  
+  const prompt = `Anda adalah seorang ahli kurikulum dan pendidikan. Berdasarkan materi: '${topicData.topic}' dengan tujuan pembelajaran: '${tpsJoined}'. Kelas: '${data.kelasSemester}', Alokasi Waktu: '${data.alokasiWaktu}'. Model Pembelajaran yang digunakan adalah: '${data.modelPembelajaran}'. Identifikasi karakteristik siswa: ${data.karakteristik}.
+  
+  Buatlah dua hal secara bersamaan:
+  1. Rubrik Penilaian untuk Lembar Kerja Peserta Didik (LKPD).
+  2. Konten Lembar Kerja Peserta Didik (LKPD) yang disesuaikan dengan Model Pembelajaran ${data.modelPembelajaran} dan karakteristik siswa tersebut. Konten harus berbasis proyek jika instruksi adalah PjBL, masalah jika PBL, dsb.
+
+  Keluarkan jawaban dalam format JSON ketat dengan struktur berikut:
+  {
+    "rubrik_asesmen": {
+       "fokus_penilaian": "Apa yang dinilai dari LKPD ini",
+       "rubrik": [
+         {
+           "aspek": "string",
+           "sangat_baik": "string",
+           "baik": "string",
+           "cukup": "string",
+           "kurang": "string"
+         }
+       ]
+    },
+    "lkpd": {
+       "judul_kegiatan": "string",
+       "pengantar": "string",
+       "alat_bahan": ["string"],
+       "langkah_kegiatan": ["string"],
+       "pertanyaan_diskusi": ["string"]
+    }
+  }`;
+
   const schema = {
     type: "OBJECT",
     properties: {
-      penilaian_proyek: { type: "OBJECT", properties: { fokus_penilaian: { type: "STRING" }, contoh_proyek: { type: "STRING" }, rubrik: { type: "ARRAY", items: { type: "OBJECT", properties: { aspek: { type: "STRING" }, sangat_baik: { type: "STRING" }, baik: { type: "STRING" }, cukup: { type: "STRING" }, kurang: { type: "STRING" } }, required: ["aspek", "sangat_baik", "baik", "cukup", "kurang"] } } }, required: ["fokus_penilaian", "contoh_proyek", "rubrik"] },
-      portofolio: { type: "OBJECT", properties: { fokus_penilaian: { type: "STRING" }, contoh_isi: { type: "ARRAY", items: { type: "STRING" } }, rubrik: { type: "ARRAY", items: { type: "OBJECT", properties: { aspek: { type: "STRING" }, sangat_baik: { type: "STRING" }, baik: { type: "STRING" }, cukup: { type: "STRING" }, kurang: { type: "STRING" } }, required: ["aspek", "sangat_baik", "baik", "cukup", "kurang"] } } }, required: ["fokus_penilaian", "contoh_isi", "rubrik"] }
+      rubrik_asesmen: { 
+        type: "OBJECT", 
+        properties: { 
+          fokus_penilaian: { type: "STRING" }, 
+          rubrik: { type: "ARRAY", items: { type: "OBJECT", properties: { aspek: { type: "STRING" }, sangat_baik: { type: "STRING" }, baik: { type: "STRING" }, cukup: { type: "STRING" }, kurang: { type: "STRING" } }, required: ["aspek", "sangat_baik", "baik", "cukup", "kurang"] } } 
+        }, 
+        required: ["fokus_penilaian", "rubrik"] 
+      },
+      lkpd: { 
+        type: "OBJECT", 
+        properties: { 
+          judul_kegiatan: { type: "STRING" }, 
+          pengantar: { type: "STRING" }, 
+          alat_bahan: { type: "ARRAY", items: { type: "STRING" } }, 
+          langkah_kegiatan: { type: "ARRAY", items: { type: "STRING" } }, 
+          pertanyaan_diskusi: { type: "ARRAY", items: { type: "STRING" } } 
+        }, 
+        required: ["judul_kegiatan", "pengantar", "langkah_kegiatan", "pertanyaan_diskusi"] 
+      }
     },
-    required: ["penilaian_proyek", "portofolio"]
+    required: ["rubrik_asesmen", "lkpd"]
   };
+  
   const parsedResult = await makeApiCall(prompt, apiKeys, schema);
 
-  let proyekHtml = `<h5 style="font-weight: bold; font-size: 11pt; margin-top: 1rem; margin-bottom: 0.5rem;">1. Penilaian Proyek (Assessment of Learning)</h5>
-    <p style="margin-bottom: 0.25rem;"><strong style="font-weight:bold;">Fokus Penilaian:</strong> ${parsedResult?.penilaian_proyek?.fokus_penilaian || ''}</p>
-    <p style="margin-bottom: 0.5rem;"><strong style="font-weight:bold;">Contoh Proyek:</strong> ${parsedResult?.penilaian_proyek?.contoh_proyek || ''}</p>
-    <table style="width: 100%; border-collapse: collapse; margin-bottom: 1rem;"><thead><tr style="background-color: #f9fafb;"><th style="border: 1px solid #000; padding: 0.5rem; font-weight: bold;">Aspek Penilaian</th><th style="border: 1px solid #000; padding: 0.5rem; font-weight: bold;">Sangat Baik (4)</th><th style="border: 1px solid #000; padding: 0.5rem; font-weight: bold;">Baik (3)</th><th style="border: 1px solid #000; padding: 0.5rem; font-weight: bold;">Cukup (2)</th><th style="border: 1px solid #000; padding: 0.5rem; font-weight: bold;">Kurang (1)</th></tr></thead><tbody>`;
-  (parsedResult?.penilaian_proyek?.rubrik || []).forEach((r:any) => {
-    proyekHtml += `<tr><td style="border: 1px solid #000; padding: 0.5rem; vertical-align: top;">${r.aspek}</td><td style="border: 1px solid #000; padding: 0.5rem; vertical-align: top;">${r.sangat_baik}</td><td style="border: 1px solid #000; padding: 0.5rem; vertical-align: top;">${r.baik}</td><td style="border: 1px solid #000; padding: 0.5rem; vertical-align: top;">${r.cukup}</td><td style="border: 1px solid #000; padding: 0.5rem; vertical-align: top;">${r.kurang}</td></tr>`;
-  });
-  proyekHtml += `</tbody></table>`;
+  let asesmenAkhirHtml = '';
+  const rubrikData = parsedResult?.rubrik_asesmen;
+  if (rubrikData) {
+    asesmenAkhirHtml += `<h5 style="font-weight: bold; font-size: 11pt; margin-top: 1rem; margin-bottom: 0.5rem;">Asesmen Lembar Kerja Peserta Didik (LKPD)</h5>`;
+    asesmenAkhirHtml += `<p style="margin-bottom: 0.25rem;"><strong style="font-weight:bold;">Fokus Penilaian:</strong> ${rubrikData.fokus_penilaian || ''}</p>`;
+    asesmenAkhirHtml += `<table style="width: 100%; border-collapse: collapse; margin-bottom: 1rem;"><thead><tr style="background-color: #f9fafb;"><th style="border: 1px solid #000; padding: 0.5rem; font-weight: bold;">Aspek Penilaian</th><th style="border: 1px solid #000; padding: 0.5rem; font-weight: bold;">Sangat Baik (4)</th><th style="border: 1px solid #000; padding: 0.5rem; font-weight: bold;">Baik (3)</th><th style="border: 1px solid #000; padding: 0.5rem; font-weight: bold;">Cukup (2)</th><th style="border: 1px solid #000; padding: 0.5rem; font-weight: bold;">Kurang (1)</th></tr></thead><tbody>`;
+    (rubrikData.rubrik || []).forEach((r:any) => {
+      asesmenAkhirHtml += `<tr><td style="border: 1px solid #000; padding: 0.5rem; vertical-align: top;">${r.aspek}</td><td style="border: 1px solid #000; padding: 0.5rem; vertical-align: top;">${r.sangat_baik}</td><td style="border: 1px solid #000; padding: 0.5rem; vertical-align: top;">${r.baik}</td><td style="border: 1px solid #000; padding: 0.5rem; vertical-align: top;">${r.cukup}</td><td style="border: 1px solid #000; padding: 0.5rem; vertical-align: top;">${r.kurang}</td></tr>`;
+    });
+    asesmenAkhirHtml += `</tbody></table>`;
+  }
 
-  let portofolioHtml = `<h5 style="font-weight: bold; font-size: 11pt; margin-top: 1rem; margin-bottom: 0.5rem;">2. Portofolio (Assessment of Learning)</h5>
-    <p style="margin-bottom: 0.25rem;"><strong style="font-weight:bold;">Fokus Penilaian:</strong> ${parsedResult?.portofolio?.fokus_penilaian || ''}</p>
-    <p style="margin-bottom: 0.25rem;"><strong style="font-weight:bold;">Contoh Isi Portofolio:</strong></p><ul style="margin-left: 1.5rem; margin-bottom: 0.5rem; list-style-type: disc;">${(parsedResult?.portofolio?.contoh_isi || []).map((i:string) => `<li>${i}</li>`).join('')}</ul>
-    <table style="width: 100%; border-collapse: collapse; margin-bottom: 1rem;"><thead><tr style="background-color: #f9fafb;"><th style="border: 1px solid #000; padding: 0.5rem; font-weight: bold;">Aspek Penilaian</th><th style="border: 1px solid #000; padding: 0.5rem; font-weight: bold;">Sangat Baik (4)</th><th style="border: 1px solid #000; padding: 0.5rem; font-weight: bold;">Baik (3)</th><th style="border: 1px solid #000; padding: 0.5rem; font-weight: bold;">Cukup (2)</th><th style="border: 1px solid #000; padding: 0.5rem; font-weight: bold;">Kurang (1)</th></tr></thead><tbody>`;
-  (parsedResult?.portofolio?.rubrik || []).forEach((r:any) => {
-    portofolioHtml += `<tr><td style="border: 1px solid #000; padding: 0.5rem; vertical-align: top;">${r.aspek}</td><td style="border: 1px solid #000; padding: 0.5rem; vertical-align: top;">${r.sangat_baik}</td><td style="border: 1px solid #000; padding: 0.5rem; vertical-align: top;">${r.baik}</td><td style="border: 1px solid #000; padding: 0.5rem; vertical-align: top;">${r.cukup}</td><td style="border: 1px solid #000; padding: 0.5rem; vertical-align: top;">${r.kurang}</td></tr>`;
-  });
-  portofolioHtml += `</tbody></table>`;
+  let lkpdHtml = '';
+  const lkpdData = parsedResult?.lkpd;
+  if (lkpdData) {
+    let alatBahanHtml = '';
+    if (lkpdData.alat_bahan && lkpdData.alat_bahan.length > 0) {
+       alatBahanHtml = `<h4 style="font-weight: bold; font-size: 11pt; margin-bottom: 0.5rem;">C. Alat dan Bahan</h4>
+        <ul style="margin-left: 1.5rem; margin-bottom: 1rem; list-style-type: disc;">
+          ${lkpdData.alat_bahan.map((a:string) => `<li>${a}</li>`).join('')}
+        </ul>`;
+    }
 
-  return `<h4 style="font-weight: bold; font-size: 11pt; margin-top: 1rem; margin-bottom: 0.5rem;">Asesmen pada Akhir Pembelajaran:</h4>${proyekHtml}${portofolioHtml}`;
+    lkpdHtml = `
+      <br clear="all" style="page-break-before: always; mso-break-type: section-break" />
+      <div style="margin-top: 2rem;">
+        <h2 style="text-align: center; font-weight: bold; font-size: 14pt; margin-bottom: 0.5rem;">LEMBAR KERJA PESERTA DIDIK (LKPD)</h2>
+        <h3 style="text-align: center; font-weight: bold; font-size: 12pt; margin-bottom: 2rem; text-transform: uppercase;">${lkpdData.judul_kegiatan}</h3>
+        
+        <table class="no-border" style="width: 100%; border: none; margin-bottom: 1.5rem; font-family: 'Times New Roman', Times, serif; font-size: 11pt;">
+          <tr><td style="width: 25%; border: none !important; padding: 0.35rem 0;">Mata Pelajaran</td><td style="width: 2%; border: none !important; padding: 0.35rem 0;">:</td><td style="border: none !important; padding: 0.35rem 0; font-weight: bold;">${data.mapel}</td></tr>
+          <tr><td style="border: none !important; padding: 0.35rem 0;">Kelas/Semester</td><td style="border: none !important; padding: 0.35rem 0;">:</td><td style="border: none !important; padding: 0.35rem 0;">${data.kelasSemester}</td></tr>
+          <tr><td style="border: none !important; padding: 0.35rem 0;">Alokasi Waktu</td><td style="border: none !important; padding: 0.35rem 0;">:</td><td style="border: none !important; padding: 0.35rem 0;">${data.alokasiWaktu}</td></tr>
+          <tr><td style="border: none !important; padding: 0.35rem 0;">Model Pembelajaran</td><td style="border: none !important; padding: 0.35rem 0;">:</td><td style="border: none !important; padding: 0.35rem 0;">${data.modelPembelajaran}</td></tr>
+        </table>
+
+        <div style="border: 1px solid #000; padding: 1rem; margin-bottom: 2rem;">
+          <p style="margin: 0 0 0.5rem 0;"><strong>Nama Kelompok / Individu :</strong> ..........................................................................</p>
+          <p style="margin: 0 0 0.5rem 0;"><strong>Nama Anggota / No. Absen :</strong></p>
+          <ol style="margin-left: 1.5rem; margin-bottom: 0;">
+             <li style="margin-bottom: 0.25rem;">....................................................................... ( &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; )</li>
+             <li style="margin-bottom: 0.25rem;">....................................................................... ( &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; )</li>
+             <li style="margin-bottom: 0.25rem;">....................................................................... ( &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; )</li>
+             <li style="margin-bottom: 0.25rem;">....................................................................... ( &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; )</li>
+             <li>....................................................................... ( &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; )</li>
+          </ol>
+        </div>
+
+        <h4 style="font-weight: bold; font-size: 11pt; margin-bottom: 0.5rem;">A. Tujuan Kegiatan</h4>
+        <p style="margin-bottom: 1.5rem; text-align: justify;">Melalui kegiatan ini, peserta didik diharapkan mampu: ${tpsJoined}</p>
+
+        <h4 style="font-weight: bold; font-size: 11pt; margin-bottom: 0.5rem;">B. Pengantar</h4>
+        <p style="margin-bottom: 1.5rem; text-align: justify;">${lkpdData.pengantar}</p>
+
+        ${alatBahanHtml}
+
+        <h4 style="font-weight: bold; font-size: 11pt; margin-bottom: 0.5rem;">${lkpdData.alat_bahan && lkpdData.alat_bahan.length > 0 ? 'D' : 'C'}. Langkah-Langkah Kegiatan</h4>
+        <ol style="margin-left: 1.5rem; margin-bottom: 2rem; text-align: justify;">
+          ${(lkpdData.langkah_kegiatan || []).map((l:string) => `<li style="margin-bottom: 0.5rem;">${l}</li>`).join('')}
+        </ol>
+
+        <h4 style="font-weight: bold; font-size: 11pt; margin-bottom: 0.5rem;">${lkpdData.alat_bahan && lkpdData.alat_bahan.length > 0 ? 'E' : 'D'}. Ruang Diskusi / Lembar Kerja</h4>
+        <ol style="margin-left: 1.5rem; margin-bottom: 2rem; text-align: justify;">
+          ${(lkpdData.pertanyaan_diskusi || []).map((p:string) => `<li style="margin-bottom: 2.5rem;">${p}<div style="border: 1px solid #000; height: 150px; margin-top: 0.5rem; padding: 0.5rem;"></div></li>`).join('')}
+        </ol>
+        
+        <h4 style="font-weight: bold; font-size: 11pt; margin-bottom: 0.5rem;">${lkpdData.alat_bahan && lkpdData.alat_bahan.length > 0 ? 'F' : 'E'}. Kesimpulan</h4>
+        <div style="border: 1px solid #000; height: 150px; padding: 0.5rem;">
+        </div>
+      </div>
+    `;
+  }
+
+  return { asesmenAkhirHtml: `<h4 style="font-weight: bold; font-size: 11pt; margin-top: 1rem; margin-bottom: 0.5rem;">Asesmen pada Akhir Pembelajaran:</h4>${asesmenAkhirHtml}`, lkpdHtml };
 }
 
 function createTandaTangan(data: RppData) {
@@ -693,21 +807,24 @@ function createTandaTangan(data: RppData) {
   const kepsekNipDisplay = kepsek.nip ? `NIP: ${kepsek.nip}` : 'NIP: .................................';
   const guruNipDisplay = guru.nip ? `NIP: ${guru.nip}` : 'NIP: .................................';
   return `
-    <table style="width: 100%; margin-top: 4rem; text-align: center; border: none; font-family: 'Times New Roman', Times, serif; font-size: 11pt;">
+    <table class="no-border" style="width: 100%; margin-top: 4rem; border: none; font-family: 'Times New Roman', Times, serif; font-size: 11pt; page-break-inside: avoid; break-inside: avoid;">
       <tr>
-        <td style="width: 50%; border: none; vertical-align: top;">
-          <p style="margin: 0;">Mengetahui,</p>
-          <p style="margin: 0;">Kepala Sekolah</p>
+        <td style="width: 50%; border: none !important; vertical-align: top;">
+          <p style="margin: 0; text-align: left;">Mengetahui,</p>
+          <p style="margin: 0; text-align: left;">Kepala Sekolah</p>
           <br><br><br><br>
-          <p style="margin: 0; font-weight: bold; text-decoration: underline;">${kepsek.name}</p>
-          <p style="margin: 0;">${kepsekNipDisplay}</p>
+          <p style="margin: 0; font-weight: bold; text-decoration: underline; text-align: left;">${kepsek.name}</p>
+          <p style="margin: 0; text-align: left;">${kepsekNipDisplay}</p>
         </td>
-        <td style="width: 50%; border: none; vertical-align: top;">
-          <p style="margin: 0;">${data.kota}, ${formattedDate}</p>
-          <p style="margin: 0;">Guru Mata Pelajaran</p>
-          <br><br><br><br>
-          <p style="margin: 0; font-weight: bold; text-decoration: underline;">${guru.name}</p>
-          <p style="margin: 0;">${guruNipDisplay}</p>
+        <td style="width: 50%; border: none !important; vertical-align: top;">
+          <div style="float: right; text-align: center;">
+            <p style="margin: 0; text-align: center;">${data.kota}, ${formattedDate}</p>
+            <p style="margin: 0; text-align: center;">Guru Mata Pelajaran</p>
+            <br><br><br><br>
+            <p style="margin: 0; font-weight: bold; text-decoration: underline; text-align: center;">${guru.name}</p>
+            <p style="margin: 0; text-align: center;">${guruNipDisplay}</p>
+          </div>
+          <div style="clear: both;"></div>
         </td>
       </tr>
     </table>`;

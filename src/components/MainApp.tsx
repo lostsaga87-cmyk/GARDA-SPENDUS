@@ -60,6 +60,22 @@ export default function MainApp({ onLogout, appConfig, currentUser }: { onLogout
   const [feedbackMsg, setFeedbackMsg] = useState('');
   const [isSendingFeedback, setIsSendingFeedback] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Theme dark mode handling
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    return localStorage.getItem('theme') === 'dark';
+  });
+
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [isDarkMode]);
+
   const [userHistory, setUserHistory] = useState<any[]>([]);
   const [userDocuments, setUserDocuments] = useState<SavedDocument[]>([]);
   
@@ -908,6 +924,13 @@ Untuk setiap materi pokok, buatkan 3 Tujuan Pembelajaran (TP) sesuai level kogni
                 {format(currentTime, 'dd MMM yyyy', { locale: id })}
               </span>
             </div>
+
+            <div className="toggle-switch scale-75 origin-right">
+              <label className="switch-label">
+                <input type="checkbox" className="checkbox" checked={isDarkMode} onChange={() => setIsDarkMode(!isDarkMode)} />
+                <span className="slider"></span>
+              </label>
+            </div>
             
             <button 
               onClick={() => setCurrentView('profile')} 
@@ -945,12 +968,23 @@ Untuk setiap materi pokok, buatkan 3 Tujuan Pembelajaran (TP) sesuai level kogni
       {isGenerating && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col p-8 items-center text-center">
-            <div className="relative w-20 h-20 mb-6">
-              <div className="absolute inset-0 border-4 border-blue-100 rounded-full"></div>
-              <div className="absolute inset-0 border-4 border-blue-600 rounded-full border-t-transparent animate-spin"></div>
+            
+            <div className="loader-wrapper scale-[0.6] origin-center -mt-6 -mb-4">
+              <span className="loader-letter">G</span>
+              <span className="loader-letter">e</span>
+              <span className="loader-letter">n</span>
+              <span className="loader-letter">e</span>
+              <span className="loader-letter">r</span>
+              <span className="loader-letter">a</span>
+              <span className="loader-letter">t</span>
+              <span className="loader-letter">i</span>
+              <span className="loader-letter">n</span>
+              <span className="loader-letter">g</span>
+              <div className="loader-element"></div>
             </div>
+
             <h3 className="text-xl font-bold text-gray-800 mb-2">Memproses Data...</h3>
-            <p className="text-gray-600">AI sedang membedah materi dan merumuskan Tujuan Pembelajaran yang sesuai dengan kriteria tingkat kognitif. Mohon tunggu sebentar.</p>
+            <p className="text-gray-600 font-medium">AI sedang membedah materi dan merumuskan Tujuan Pembelajaran yang sesuai dengan kriteria tingkat kognitif. Mohon tunggu sebentar.</p>
           </div>
         </div>
       )}

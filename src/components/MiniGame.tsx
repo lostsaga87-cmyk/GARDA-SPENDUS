@@ -107,7 +107,17 @@ export default function MiniGame() {
   const activeConfig = LEVEL_CONFIG[level - 1];
 
   return (
-    <div className="w-full flex flex-col items-center select-none">
+    <div className="w-full flex flex-col items-center select-none bg-white p-4 rounded-xl">
+      <div className="text-center mb-4">
+        <h3 className="text-lg font-bold text-gray-800 animate-pulse flex items-center justify-center gap-2">
+          <Brain className="w-5 h-5 text-purple-500" />
+          AI Sedang Bekerja...
+        </h3>
+        <p className="text-xs font-medium text-gray-500 mt-1 max-w-[280px]">
+          Sambil menunggu AI membedah Modul/LKPD yang komprehensif, yuk selesaikan tes konsentrasi ini!
+        </p>
+      </div>
+
       <div className="flex justify-between items-center w-full mb-3 px-2">
         <div className="text-xs font-bold text-white bg-blue-500 shadow-sm px-3 py-1 rounded-full flex items-center gap-1">
           <Star className="w-3 h-3 text-yellow-300" />

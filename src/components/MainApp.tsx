@@ -7,8 +7,8 @@ import OutputSection from './OutputSection';
 import { IdeaModal } from './Modals';
 import { RppData } from '../types';
 import { makeApiCall } from '../lib/api';
-import { AppConfig, User, logActivity, getUserHistory, updatePassword, getUserDocuments, SavedDocument, getDocumentById } from '../lib/store';
-import { User as UserIcon, Clock, History, Key, X, Check, Menu, HelpCircle, LogOut, FileText, Download, MessageSquare, ChevronDown } from 'lucide-react';
+import { AppConfig, User, logActivity, getUserHistory, updatePassword, getUserDocuments, SavedDocument, getDocumentById, deleteDocument } from '../lib/store';
+import { User as UserIcon, Clock, History, Key, X, Check, Menu, HelpCircle, LogOut, FileText, Download, MessageSquare, ChevronDown, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 
@@ -694,7 +694,19 @@ Untuk setiap materi pokok, buatkan 3 Tujuan Pembelajaran (TP) sesuai level kogni
                         }} 
                         className="flex-1 flex justify-center items-center gap-2 bg-emerald-600 text-white py-2.5 rounded-lg hover:bg-emerald-700 transition-colors shadow shadow-emerald-200 text-sm font-semibold"
                       >
-                        <Download className="w-5 h-5" /> Unduh (Word)
+                        <Download className="w-5 h-5" /> Unduh
+                      </button>
+                      <button 
+                        onClick={async () => {
+                          if (confirm("Apakah Anda yakin ingin menghapus dokumen ini?")) {
+                            await deleteDocument(doc.id);
+                            getUserDocuments(currentUser.id).then(docs => setUserDocuments(docs));
+                          }
+                        }}
+                        className="flex-none flex justify-center items-center bg-red-50 text-red-600 p-2.5 rounded-lg hover:bg-red-100 hover:text-red-700 transition-colors border border-red-200"
+                        title="Hapus Dokumen"
+                      >
+                        <Trash2 className="w-5 h-5" />
                       </button>
                     </div>
                   </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Users, Key, BookOpen, LayoutDashboard, LogOut, Check, X, Save, ShieldCheck, Activity } from 'lucide-react';
+import { Settings, Users, Key, BookOpen, LayoutDashboard, LogOut, Check, X, Save, ShieldCheck, Activity, RefreshCw } from 'lucide-react';
 import { AppConfig, User, getAppConfig, updateAppConfig, getUsers, updateUserStatus, getActivityStats } from '../lib/store';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { format, parseISO, subDays } from 'date-fns';
@@ -12,14 +12,20 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [usersList, setUsersList] = useState<User[]>([]);
   const [saveMessage, setSaveMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [activityData, setActivityData] = useState<any[]>([]);
 
   useEffect(() => {
     fetchData();
   }, []);
 
-  const fetchData = async () => {
-    setIsLoading(true);
+  const fetchData = async (isRefreshAction = false) => {
+    if (isRefreshAction) {
+      setIsRefreshing(true);
+    } else {
+      setIsLoading(true);
+    }
+    
     try {
       const [configData, usersData, statsData] = await Promise.all([
         getAppConfig(),
@@ -31,10 +37,32 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       
       // Process stats data for charts
       processChartData(statsData);
+      
+      if (isRefreshAction) {
+        Swal.fire({
+          toast: true,
+          position: 'top-end',
+          icon: 'success',
+          title: 'Data berhasil diperbarui',
+          showConfirmButton: false,
+          timer: 2000
+        });
+      }
     } catch (err) {
       console.error('Error fetching admin data:', err);
+      if (isRefreshAction) {
+        Swal.fire({
+          toast: true,
+          position: 'top-end',
+          icon: 'error',
+          title: 'Gagal memperbarui data',
+          showConfirmButton: false,
+          timer: 2000
+        });
+      }
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -147,6 +175,19 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       {/* Main Content */}
       <main className="flex-1 p-6 md:p-10 overflow-y-auto">
         <div className="max-w-4xl mx-auto">
+          <div className="flex justify-between items-center mb-6">
+            <div></div>
+            <button 
+              onClick={() => fetchData(true)} 
+              disabled={isRefreshing}
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors shadow-sm text-sm font-medium disabled:opacity-50"
+              title="Refresh data (Pengguna, Grafik)"
+            >
+              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              {isRefreshing ? 'Memuat...' : 'Muat Ulang'}
+            </button>
+          </div>
+
           {saveMessage && (
             <div className="mb-6 p-4 bg-green-100 border-l-4 border-green-500 text-green-700 rounded shadow-sm flex items-center">
               <Check className="w-5 h-5 mr-2" /> {saveMessage}

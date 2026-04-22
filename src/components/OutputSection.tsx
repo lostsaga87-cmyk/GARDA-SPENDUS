@@ -59,7 +59,7 @@ export default function OutputSection({ rppData, setRppData, apiKeys, onBack, us
         ] = await Promise.all([
           createAsesmenAwal(rppData, currentTopicData, apiKeys),
           createAsesmenProses(rppData, currentTopicData, apiKeys),
-          createAsesmenAkhirAndLKPD(rppData, currentTopicData, apiKeys)
+          createAsesmenAkhirAndLKPD(rppData, currentTopicData, apiKeys, langkahPembelajaranHtml)
         ]);
         
         let asesmenAkhirHtml = "";
@@ -579,7 +579,11 @@ function createSumberBelajarHtml(data: RppData, topicData: any) {
 
 async function createLangkahPembelajaran(data: RppData, topicData: any, apiKeys: string[]) {
   const tpsJoined = topicData.tps.map((t:any) => t.text).join(', ');
-  const prompt = `Anda adalah seorang guru inovatif. Rancang langkah-langkah pembelajaran dalam format tabel untuk sebuah pertemuan. Model Pembelajaran yang harus digunakan adalah: ${data.modelPembelajaran}. Bagian 'inti' dari pembelajaran HARUS secara eksplisit mengikuti sintaks/langkah-langkah dari model ${data.modelPembelajaran}. Topik pertemuan ini adalah: '${topicData.topic}', dengan Tujuan Pembelajaran: '${tpsJoined}'. Karakteristik Siswa: ${data.karakteristik}, Minat: ${data.minat}. Rancang aktivitas yang sesuai dengan kondisi siswa tersebut. Format jawaban dalam JSON dengan kunci: 'awal', 'inti', dan 'penutup'. Masing-masing kunci berisi array objek. Setiap objek mewakili satu baris tabel dan harus memiliki kunci 'tahap' (untuk tahap inti, gunakan nama sintaks modelnya), 'prinsip' (pilih dari 'Berkesadaran', 'Bermakna', 'Menggembirakan'), dan 'deskripsi' (jelaskan aktivitas guru dan siswa secara rinci).`;
+  const prompt = `Anda adalah seorang guru inovatif. Rancang langkah-langkah pembelajaran dalam format tabel untuk sebuah pertemuan. Model Pembelajaran yang harus digunakan adalah: ${data.modelPembelajaran}. Bagian 'inti' dari pembelajaran HARUS secara eksplisit mengikuti sintaks/langkah-langkah dari model ${data.modelPembelajaran}. 
+Topik pertemuan ini adalah: '${topicData.topic}', dengan Tujuan Pembelajaran: '${tpsJoined}'. 
+PENTING: Durasi untuk pertemuan ini adalah tepat ${data.durasiPertemuan}. Anda HARUS menyesuaikan scope dan alokasi waktu dari setiap tahap (awal, inti, penutup) agar sangat realistis diselesaikan dalam estimasi durasi ${data.durasiPertemuan} tersebut (tuliskan estimasi menit untuk tiap baris di deskripsi).
+Selain itu, perhatikan Identifikasi Awal Siswa: Karakteristik: ${data.karakteristik}, Minat: ${data.minat}. Aktivitas awal (apersepsi/asesmen diagnostik singkat) harus secara spesifik mempertimbangkan identifikasi profil siswa ini.
+Format jawaban dalam JSON dengan kunci: 'awal', 'inti', dan 'penutup'. Masing-masing kunci berisi array objek. Setiap objek mewakili satu baris tabel dan harus memiliki kunci 'tahap' (untuk tahap inti, gunakan nama sintaks modelnya), 'prinsip' (pilih dari 'Berkesadaran', 'Bermakna', 'Menggembirakan'), dan 'deskripsi' (jelaskan aktivitas guru dan siswa secara rinci beserta alokasi waktu menitnya).`;
   const schema = {
     type: "OBJECT",
     properties: {
@@ -663,14 +667,23 @@ async function createAsesmenProses(data: RppData, topicData: any, apiKeys: strin
   return `<h4 style="font-weight: bold; font-size: 11pt; margin-top: 1rem; margin-bottom: 0.5rem;">Asesmen pada Proses Pembelajaran:</h4>${observasiHtml}${kinerjaHtml}${peerHtml}`;
 }
 
-async function createAsesmenAkhirAndLKPD(data: RppData, topicData: any, apiKeys: string[]): Promise<{asesmenAkhirHtml: string, lkpdHtml: string}> {
+async function createAsesmenAkhirAndLKPD(data: RppData, topicData: any, apiKeys: string[], langkahPembelajaranHtml: string): Promise<{asesmenAkhirHtml: string, lkpdHtml: string}> {
   const tpsJoined = topicData.tps.map((t:any) => t.text).join(', ');
   
-  const prompt = `Anda adalah seorang ahli kurikulum dan pendidikan. Berdasarkan materi: '${topicData.topic}' dengan tujuan pembelajaran: '${tpsJoined}'. Kelas: '${data.kelasSemester}', Alokasi Waktu: '${data.alokasiWaktu}'. Model Pembelajaran yang digunakan adalah: '${data.modelPembelajaran}'. Identifikasi karakteristik siswa: ${data.karakteristik}.
+  // Create a clean text version of the HTML to pass to the AI, removing tags
+  const cleanLangkah = langkahPembelajaranHtml.replace(/<[^>]*>?/gm, ' ').replace(/\s\s+/g, ' ').trim();
+
+  const prompt = `Anda adalah seorang ahli kurikulum dan pendidikan. Berdasarkan materi: '${topicData.topic}' dengan tujuan pembelajaran: '${tpsJoined}'. Kelas: '${data.kelasSemester}', Alokasi Waktu Keseluruhan: '${data.alokasiWaktu}', Durasi Pertemuan ini: '${data.durasiPertemuan}'. Model Pembelajaran yang digunakan adalah: '${data.modelPembelajaran}'. Identifikasi karakteristik siswa: ${data.karakteristik}, Minat: ${data.minat}.
   
+  PENTING SEKALI: Sebelumnya telah disusun Langkah Pembelajaran / Kegiatan Inti (skenario diskusi/proyek/aktivitas kelas) sebagai berikut:
+  """
+  ${cleanLangkah}
+  """
+
   Buatlah dua hal secara bersamaan:
   1. Rubrik Penilaian untuk Lembar Kerja Peserta Didik (LKPD).
-  2. Konten Lembar Kerja Peserta Didik (LKPD) yang disesuaikan dengan Model Pembelajaran ${data.modelPembelajaran} dan karakteristik siswa tersebut. Konten harus berbasis proyek jika instruksi adalah PjBL, masalah jika PBL, dsb.
+  2. Konten LKPD yang HARUS SANGAT SELARAS dengan skenario pokok bahasan pada kegiatan inti di atas. (JANGAN membuat topik atau skenario baru yang berbeda jalur. Jika kegiatan intinya siswa mencari A, LKPD-nya harus tentang mencari A). Konten harus berbasis proyek jika instruksi adalah PjBL, masalah jika PBL, dsb sesuai desain tabel tersebut.
+  PENTING TAMBAHAN: Durasi untuk pertemuan ini adalah tepat ${data.durasiPertemuan}. Anda HARUS menyesuaikan scope/kesulitan tugas di LKPD agar logis diselesaikan dalam tenggat waktu tersebut di kelas. Nilai "alokasi_waktu" di LKPD HARUS diisi persis sama dengan nilai: "${data.durasiPertemuan}".
 
   Keluarkan jawaban dalam format JSON ketat dengan struktur berikut:
   {
@@ -688,6 +701,7 @@ async function createAsesmenAkhirAndLKPD(data: RppData, topicData: any, apiKeys:
     },
     "lkpd": {
        "judul_kegiatan": "string",
+       "alokasi_waktu": "string",
        "pengantar": "string",
        "alat_bahan": ["string"],
        "langkah_kegiatan": ["string"],
@@ -710,12 +724,13 @@ async function createAsesmenAkhirAndLKPD(data: RppData, topicData: any, apiKeys:
         type: "OBJECT", 
         properties: { 
           judul_kegiatan: { type: "STRING" }, 
+          alokasi_waktu: { type: "STRING" }, 
           pengantar: { type: "STRING" }, 
           alat_bahan: { type: "ARRAY", items: { type: "STRING" } }, 
           langkah_kegiatan: { type: "ARRAY", items: { type: "STRING" } }, 
           pertanyaan_diskusi: { type: "ARRAY", items: { type: "STRING" } } 
         }, 
-        required: ["judul_kegiatan", "pengantar", "langkah_kegiatan", "pertanyaan_diskusi"] 
+        required: ["judul_kegiatan", "alokasi_waktu", "pengantar", "langkah_kegiatan", "pertanyaan_diskusi"] 
       }
     },
     required: ["rubrik_asesmen", "lkpd"]
@@ -755,7 +770,7 @@ async function createAsesmenAkhirAndLKPD(data: RppData, topicData: any, apiKeys:
         <table class="no-border" style="width: 100%; border: none; margin-bottom: 1.5rem; font-family: 'Times New Roman', Times, serif; font-size: 11pt;">
           <tr><td style="width: 25%; border: none !important; padding: 0.35rem 0;">Mata Pelajaran</td><td style="width: 2%; border: none !important; padding: 0.35rem 0;">:</td><td style="border: none !important; padding: 0.35rem 0; font-weight: bold;">${data.mapel}</td></tr>
           <tr><td style="border: none !important; padding: 0.35rem 0;">Kelas/Semester</td><td style="border: none !important; padding: 0.35rem 0;">:</td><td style="border: none !important; padding: 0.35rem 0;">${data.kelasSemester}</td></tr>
-          <tr><td style="border: none !important; padding: 0.35rem 0;">Alokasi Waktu</td><td style="border: none !important; padding: 0.35rem 0;">:</td><td style="border: none !important; padding: 0.35rem 0;">${data.alokasiWaktu}</td></tr>
+          <tr><td style="border: none !important; padding: 0.35rem 0;">Alokasi Waktu</td><td style="border: none !important; padding: 0.35rem 0;">:</td><td style="border: none !important; padding: 0.35rem 0;">${data.durasiPertemuan}</td></tr>
           <tr><td style="border: none !important; padding: 0.35rem 0;">Model Pembelajaran</td><td style="border: none !important; padding: 0.35rem 0;">:</td><td style="border: none !important; padding: 0.35rem 0;">${data.modelPembelajaran}</td></tr>
         </table>
 
@@ -786,11 +801,11 @@ async function createAsesmenAkhirAndLKPD(data: RppData, topicData: any, apiKeys:
 
         <h4 style="font-weight: bold; font-size: 11pt; margin-bottom: 0.5rem;">${lkpdData.alat_bahan && lkpdData.alat_bahan.length > 0 ? 'E' : 'D'}. Ruang Diskusi / Lembar Kerja</h4>
         <ol style="margin-left: 1.5rem; margin-bottom: 2rem; text-align: justify;">
-          ${(lkpdData.pertanyaan_diskusi || []).map((p:string) => `<li style="margin-bottom: 1.5rem;">${p}<table style="width: 100%; border-collapse: collapse; margin-top: 0.5rem;" border="1"><tbody><tr><td style="height: 150px; border: 1px solid #000;"></td></tr></tbody></table></li>`).join('')}
+          ${(lkpdData.pertanyaan_diskusi || []).map((p:string) => `<li style="margin-bottom: 1.5rem;">${p}<div style="margin-top: 0.5rem;"><table style="width: 100%; border-collapse: collapse; border: 1px solid #000;" border="1"><tbody><tr><td style="border: 1px solid #000; padding: 10px;"><br><br><br><br><br><br><br></td></tr></tbody></table></div></li>`).join('')}
         </ol>
         
         <h4 style="font-weight: bold; font-size: 11pt; margin-bottom: 0.5rem;">${lkpdData.alat_bahan && lkpdData.alat_bahan.length > 0 ? 'F' : 'E'}. Kesimpulan</h4>
-        <table style="width: 100%; border-collapse: collapse; margin-top: 0.5rem;" border="1"><tbody><tr><td style="height: 150px; border: 1px solid #000;"></td></tr></tbody></table>
+        <div><table style="width: 100%; border-collapse: collapse; margin-top: 0.5rem; border: 1px solid #000;" border="1"><tbody><tr><td style="border: 1px solid #000; padding: 10px;"><br><br><br><br><br><br><br></td></tr></tbody></table></div>
       </div>
     `;
   }

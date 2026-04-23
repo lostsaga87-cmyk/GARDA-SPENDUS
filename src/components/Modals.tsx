@@ -11,7 +11,7 @@ export function HelpModal({ onClose }: { onClose: () => void }) {
           <ol className="list-decimal list-inside space-y-2">
             <li><strong>Login:</strong> Masukkan username dan password yang telah ditentukan untuk masuk ke aplikasi.</li>
             <li><strong>Isi Identitas Rencana Pembelajaran & Siswa:</strong> Lengkapi semua data pada formulir pertama, seperti nama sekolah, jenjang, hingga data identifikasi awal siswa.</li>
-            <li><strong>Masukkan Capaian Pembelajaran:</strong> Tulis kalimat CP atau beberapa materi pokok pada kolom yang tersedia.</li>
+            <li><strong>Masukkan Materi Ajar:</strong> Tulis beberapa materi pokok pada kolom yang tersedia yang dipisahkan oleh titik koma.</li>
             <li><strong>Generate TP, ATP, KKTP:</strong> Klik tombol "Lanjutkan" atau "Buat" pada setiap langkah. Aplikasi akan otomatis menghasilkan Tujuan Pembelajaran (TP), Alur Tujuan Pembelajaran (ATP), dan Kriteria Ketercapaian (KKTP) berdasarkan materi yang Anda input.</li>
             <li><strong>Ide Kreatif (Opsional):</strong> Gunakan tombol "✨ Dapatkan Ide Kreatif" untuk mendapatkan ide ice breaking, rangkuman materi untuk siswa, dan pertanyaan refleksi dari AI.</li>
             <li><strong>Generate Rencana Pembelajaran & LKPD:</strong> Setelah KKTP dibuat, gunakan tombol "Buat Rencana Pembelajaran Lengkap" untuk menghasilkan dokumen yang diinginkan.</li>

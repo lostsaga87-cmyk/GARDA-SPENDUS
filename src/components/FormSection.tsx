@@ -51,18 +51,6 @@ export default function FormSection({ rppData, setRppData, validationError, onGe
 
   const options = updateKelasFaseOptions();
 
-  const handleLoadCP = () => {
-    if (rppData.fase && appConfig.cpData[rppData.fase]) {
-      handleChange('cp_full_text', appConfig.cpData[rppData.fase]);
-    } else {
-      Swal.fire({
-        icon: 'info',
-        title: 'Info',
-        text: 'Pilih Fase terlebih dahulu atau CP untuk fase ini belum dikonfigurasi oleh Admin.',
-      });
-    }
-  };
-
   return (
     <div className="space-y-6">
       <section className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
@@ -272,13 +260,10 @@ export default function FormSection({ rppData, setRppData, validationError, onGe
 
       <section className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-gray-800">2. Capaian Pembelajaran / Materi</h2>
-          <button onClick={handleLoadCP} className="px-4 py-2 text-sm rounded-lg font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors">
-            Muat CP Fase {rppData.fase || '?'}
-          </button>
+          <h2 className="text-xl font-bold text-gray-800">2. Materi Ajar</h2>
         </div>
-        <label className="block font-semibold text-gray-700 mb-2">Masukkan kalimat Capaian Pembelajaran atau beberapa materi pokok dipisahkan titik koma (;)</label>
-        <textarea className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" rows={4} placeholder="Contoh: Mengenali berbagai model jaringan komputer; Melakukan pengiriman data antarperangkat." value={rppData.cp_full_text} onChange={e => handleChange('cp_full_text', e.target.value)}></textarea>
+        <label className="block font-semibold text-gray-700 mb-2">Masukkan materi pokok dipisahkan titik koma (;)</label>
+        <textarea className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" rows={4} placeholder="Contoh: Tata Surya; Planet;" value={rppData.cp_full_text} onChange={e => handleChange('cp_full_text', e.target.value)}></textarea>
         
         <div className="flex flex-wrap items-center gap-4 mt-6">
           <button onClick={onGenerateTP} className="px-6 py-3 rounded-lg font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors">Lanjutkan ke Tujuan Pembelajaran</button>

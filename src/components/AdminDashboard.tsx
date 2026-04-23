@@ -158,9 +158,6 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
           <button onClick={() => setActiveTab('api')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'api' ? 'bg-blue-600' : 'hover:bg-slate-700'}`}>
             <Key className="w-5 h-5" /> Konfigurasi API
           </button>
-          <button onClick={() => setActiveTab('cp')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'cp' ? 'bg-blue-600' : 'hover:bg-slate-700'}`}>
-            <BookOpen className="w-5 h-5" /> Konfigurasi CP
-          </button>
           <button onClick={() => setActiveTab('users')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'users' ? 'bg-blue-600' : 'hover:bg-slate-700'}`}>
             <Users className="w-5 h-5" /> Pengguna
           </button>
@@ -309,30 +306,6 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                 </div>
                 <button onClick={handleSaveConfig} className="flex items-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors">
                   <Save className="w-5 h-5 mr-2" /> Simpan API Key
-                </button>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'cp' && (
-            <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100">
-              <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2"><BookOpen className="w-6 h-6 text-blue-600" /> Konfigurasi Capaian Pembelajaran (CP)</h2>
-              <p className="text-gray-600 mb-6">Atur teks default Capaian Pembelajaran untuk masing-masing fase. Teks ini dapat dimuat oleh pengguna saat membuat RPP.</p>
-              <div className="space-y-6">
-                {['A', 'B', 'C', 'D', 'E', 'F'].map(fase => (
-                  <div key={fase}>
-                    <label className="block font-semibold text-gray-700 mb-2">Fase {fase}</label>
-                    <textarea 
-                      rows={3} 
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" 
-                      placeholder={`Masukkan CP Fase ${fase}`}
-                      value={config.cpData[fase] || ''} 
-                      onChange={e => setConfig({...config, cpData: { ...config.cpData, [fase]: e.target.value }})} 
-                    />
-                  </div>
-                ))}
-                <button onClick={handleSaveConfig} className="flex items-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors">
-                  <Save className="w-5 h-5 mr-2" /> Simpan Konfigurasi CP
                 </button>
               </div>
             </div>

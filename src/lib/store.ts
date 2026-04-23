@@ -18,21 +18,12 @@ export interface AppConfig {
   appName: string;
   appLogo: string;
   apiKeys: string[];
-  cpData: Record<string, string>;
 }
 
 export const DEFAULT_CONFIG: AppConfig = {
   appName: "GARDA SPENDUS",
   appLogo: "https://lh3.googleusercontent.com/d/1ltGZoLoeamrE79q-Uzwx3KUg6A987qo2",
   apiKeys: Array(10).fill(""),
-  cpData: {
-    A: "",
-    B: "",
-    C: "",
-    D: "",
-    E: "",
-    F: ""
-  }
 };
 
 // Fungsi ini dipertahankan untuk kompatibilitas jika ada yang memanggilnya,
@@ -64,7 +55,6 @@ export async function getAppConfig(): Promise<AppConfig | null> {
     appName: data.app_name,
     appLogo: data.app_logo,
     apiKeys: parsedApiKeys,
-    cpData: data.cp_data || {}
   };
 }
 
@@ -74,7 +64,6 @@ export async function updateAppConfig(config: AppConfig) {
     app_name: config.appName,
     app_logo: config.appLogo,
     api_key: JSON.stringify(config.apiKeys),
-    cp_data: config.cpData
   });
   if (error) throw error;
 }

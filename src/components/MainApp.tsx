@@ -217,7 +217,7 @@ export default function MainApp({ onLogout, appConfig, currentUser }: { onLogout
     for (const field of requiredFields) {
       if (!rppData[field]) {
         isValid = false;
-        errorMessage = 'Kolom wajib diisi. Harap lengkapi semua data identitas dan capaian pembelajaran.';
+        errorMessage = 'Kolom wajib diisi. Harap lengkapi semua data identitas dan materi ajar.';
         break;
       }
     }
@@ -256,7 +256,7 @@ export default function MainApp({ onLogout, appConfig, currentUser }: { onLogout
 
     setIsGenerating(true);
     
-    const prompt = `Anda adalah ahli kurikulum pendidikan Indonesia. Analisis teks Capaian Pembelajaran/Materi berikut: "${rppData.cp_full_text}". 
+    const prompt = `Anda adalah ahli kurikulum pendidikan Indonesia. Analisis teks Materi Ajar berikut: "${rppData.cp_full_text}". 
 PENTING: Teks tersebut mengandung ${rppData.jumlahPertemuan} materi pokok yang dipisahkan oleh tanda titik koma (;). Anda HARUS memecahnya tepat menjadi ${rppData.jumlahPertemuan} materi pokok sesuai pemisahan tersebut. 
 Untuk setiap materi pokok, buatkan 3 Tujuan Pembelajaran (TP) sesuai level kognitif: Memahami, Mengaplikasi, dan Merefleksi. Berikan jawaban dalam format JSON. JSON harus memiliki satu kunci utama "materi" yang berisi array. Setiap objek dalam array mewakili satu materi pokok dan memiliki kunci "topic" (string) dan "tps" (array dari 3 objek TP). Setiap objek TP harus memiliki kunci "level" dan "text".`;
     const schema = { 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Printer, FileText, Edit, Save, ArrowLeft, Download } from 'lucide-react';
 import { RppData } from '../types';
 import { makeApiCall } from '../lib/api';
@@ -19,6 +19,22 @@ export default function OutputSection({ rppData, setRppData, apiKeys, onBack, us
   const [error, setError] = useState('');
   const [rppHtml, setRppHtml] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  const editContentRef = useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (editContentRef.current && rppHtml) {
+      if (!isEditing && editContentRef.current.innerHTML !== rppHtml) {
+        editContentRef.current.innerHTML = rppHtml;
+      }
+    }
+  }, [rppHtml, isEditing]);
+
+  const handleEditToggle = () => {
+    if (isEditing && editContentRef.current) {
+      setRppHtml(editContentRef.current.innerHTML);
+    }
+    setIsEditing(!isEditing);
+  };
 
   const handleGenerateATP = () => {
     setStep(4);
@@ -435,7 +451,7 @@ export default function OutputSection({ rppData, setRppData, apiKeys, onBack, us
                   <h2 className="text-2xl font-bold text-gray-800">Hasil Dokumen Rencana Pembelajaran</h2>
                 </div>
                 <div className="flex flex-wrap gap-3">
-                  <button onClick={() => setIsEditing(!isEditing)} className={`flex items-center px-4 py-2 rounded-lg font-semibold text-white transition-colors ${isEditing ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-amber-500 hover:bg-amber-600'}`}>
+                  <button onClick={handleEditToggle} className={`flex items-center px-4 py-2 rounded-lg font-semibold text-white transition-colors ${isEditing ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-amber-500 hover:bg-amber-600'}`}>
                     {isEditing ? <><Save className="w-4 h-4 mr-2" /> Simpan Edit</> : <><Edit className="w-4 h-4 mr-2" /> Edit Dokumen</>}
                   </button>
                   <button onClick={() => handlePrint('rpp-content-to-export', 'RPP')} disabled={isEditing} className="flex items-center px-4 py-2 rounded-lg font-semibold text-white bg-green-600 hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
@@ -448,9 +464,15 @@ export default function OutputSection({ rppData, setRppData, apiKeys, onBack, us
               </div>
               <div 
                 id="rpp-content-to-export"
+                ref={editContentRef}
+                suppressContentEditableWarning={true}
                 contentEditable={isEditing}
+                onBlur={(e) => {
+                  if (isEditing) {
+                    setRppHtml(e.currentTarget.innerHTML);
+                  }
+                }}
                 className={`p-8 bg-white rounded-lg font-serif text-[11pt] leading-relaxed ${isEditing ? 'border-2 border-dashed border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.2)] focus:outline-none' : 'border border-gray-200'}`}
-                dangerouslySetInnerHTML={{ __html: rppHtml }}
               />
             </>
           )}
@@ -684,6 +706,7 @@ async function createAsesmenAkhirAndLKPD(data: RppData, topicData: any, apiKeys:
   1. Rubrik Penilaian untuk Lembar Kerja Peserta Didik (LKPD).
   2. Konten LKPD yang HARUS SANGAT SELARAS dengan skenario pokok bahasan pada kegiatan inti di atas. (JANGAN membuat topik atau skenario baru yang berbeda jalur. Jika kegiatan intinya siswa mencari A, LKPD-nya harus tentang mencari A). Konten harus berbasis proyek jika instruksi adalah PjBL, masalah jika PBL, dsb sesuai desain tabel tersebut.
   PENTING TAMBAHAN: Durasi untuk pertemuan ini adalah tepat ${data.durasiPertemuan}. Anda HARUS menyesuaikan scope/kesulitan tugas di LKPD agar logis diselesaikan dalam tenggat waktu tersebut di kelas. Nilai "alokasi_waktu" di LKPD HARUS diisi persis sama dengan nilai: "${data.durasiPertemuan}".
+  Selain itu, tambahkan rekomendasi media sumber belajar (Video / Gambar) berupa URL relevan yang bisa diakses untuk membantu/menunjang pengerjaan LKPD siswa. Contoh url: https://www.youtube.com/results?search_query=... atau https://id.wikipedia.org/wiki/...
 
   Keluarkan jawaban dalam format JSON ketat dengan struktur berikut:
   {
@@ -703,6 +726,13 @@ async function createAsesmenAkhirAndLKPD(data: RppData, topicData: any, apiKeys:
        "judul_kegiatan": "string",
        "alokasi_waktu": "string",
        "pengantar": "string",
+       "sumber_belajar_multimedia": [
+         {
+           "jenis": "Video / Gambar / Artikel",
+           "deskripsi": "Deskripsi singkat mengenai isi dari URL tersebut",
+           "url": "URL nyata atau URL pencarian youtube yang relevan"
+         }
+       ],
        "alat_bahan": ["string"],
        "langkah_kegiatan": ["string"],
        "pertanyaan_diskusi": ["string"]
@@ -726,6 +756,18 @@ async function createAsesmenAkhirAndLKPD(data: RppData, topicData: any, apiKeys:
           judul_kegiatan: { type: "STRING" }, 
           alokasi_waktu: { type: "STRING" }, 
           pengantar: { type: "STRING" }, 
+          sumber_belajar_multimedia: {
+            type: "ARRAY",
+            items: {
+              type: "OBJECT",
+              properties: {
+                jenis: { type: "STRING" },
+                deskripsi: { type: "STRING" },
+                url: { type: "STRING" }
+              },
+              required: ["jenis", "deskripsi", "url"]
+            }
+          },
           alat_bahan: { type: "ARRAY", items: { type: "STRING" } }, 
           langkah_kegiatan: { type: "ARRAY", items: { type: "STRING" } }, 
           pertanyaan_diskusi: { type: "ARRAY", items: { type: "STRING" } } 
@@ -761,6 +803,20 @@ async function createAsesmenAkhirAndLKPD(data: RppData, topicData: any, apiKeys:
         </ul>`;
     }
 
+    let sumberBelajarHtml = '';
+    if (lkpdData.sumber_belajar_multimedia && lkpdData.sumber_belajar_multimedia.length > 0) {
+      sumberBelajarHtml = `<div style="margin-bottom: 1.5rem; padding: 1rem; background-color: #f0f9ff; border-left: 4px solid #3b82f6;">
+        <h5 style="font-weight: bold; font-size: 11pt; margin-bottom: 0.5rem; color: #1e3a8a;">Referensi Sumber Belajar / Multimedia:</h5>
+        <ul style="margin-left: 1.5rem; margin-bottom: 0; list-style-type: circle; color: #1e40af;">
+          ${lkpdData.sumber_belajar_multimedia.map((s:any) => `
+            <li style="margin-bottom: 0.25rem;">
+              <strong>${s.jenis}:</strong> ${s.deskripsi} <br/> 
+              <a href="${s.url}" target="_blank" style="color: #2563eb; text-decoration: underline; word-break: break-all;">${s.url}</a>
+            </li>`).join('')}
+        </ul>
+      </div>`;
+    }
+
     lkpdHtml = `
       <br clear="all" style="page-break-before: always; mso-break-type: section-break" />
       <div style="margin-top: 2rem;">
@@ -791,6 +847,8 @@ async function createAsesmenAkhirAndLKPD(data: RppData, topicData: any, apiKeys:
 
         <h4 style="font-weight: bold; font-size: 11pt; margin-bottom: 0.5rem;">B. Pengantar</h4>
         <p style="margin-bottom: 1.5rem; text-align: justify;">${lkpdData.pengantar}</p>
+
+        ${sumberBelajarHtml}
 
         ${alatBahanHtml}
 

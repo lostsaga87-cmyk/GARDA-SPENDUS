@@ -8,7 +8,7 @@ import { IdeaModal } from './Modals';
 import { RppData } from '../types';
 import { makeApiCall } from '../lib/api';
 import { AppConfig, User, logActivity, getUserHistory, updatePassword, getUserDocuments, SavedDocument, getDocumentById, deleteDocument } from '../lib/store';
-import { User as UserIcon, Clock, History, Key, X, Check, Menu, HelpCircle, LogOut, FileText, Download, MessageSquare, ChevronDown, Trash2 } from 'lucide-react';
+import { User as UserIcon, Clock, History, Key, X, Check, Menu, HelpCircle, LogOut, FileText, Download, MessageSquare, ChevronDown, Trash2, Star } from 'lucide-react';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import Swal from 'sweetalert2';
@@ -59,6 +59,7 @@ export default function MainApp({ onLogout, appConfig, currentUser }: { onLogout
   const [showIdeaModal, setShowIdeaModal] = useState(false);
   
   const [feedbackMsg, setFeedbackMsg] = useState('');
+  const [feedbackRating, setFeedbackRating] = useState(0);
   const [isSendingFeedback, setIsSendingFeedback] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -126,9 +127,10 @@ export default function MainApp({ onLogout, appConfig, currentUser }: { onLogout
 
     setIsSendingFeedback(true);
     try {
+      const ratingStars = feedbackRating > 0 ? "⭐".repeat(feedbackRating) : "Belum dinilai";
       const formData = new FormData();
       formData.append('target', '08992124036'); // Hardcoded Admin WhatsApp Number
-      formData.append('message', `*KRITIK & SARAN*\n\nDari: *${currentUser.username}*\nSekolah: ${currentUser.namaSekolah || '-'}\n\nPesan:\n"${feedbackMsg}"`);
+      formData.append('message', `*KRITIK/SARAN & SURVEY KEPUASAN*\n\nDari: *${currentUser.username}*\nSekolah: ${currentUser.namaSekolah || '-'}\nRating: ${ratingStars} (${feedbackRating}/5)\n\nPesan:\n"${feedbackMsg}"`);
       
       const response = await fetch("https://api.fonnte.com/send", {
         method: "POST",
@@ -146,6 +148,7 @@ export default function MainApp({ onLogout, appConfig, currentUser }: { onLogout
           text: 'Kritik dan Saran berhasil dikirimkan via WhatsApp ke Admin. Terima kasih!',
         });
         setFeedbackMsg('');
+        setFeedbackRating(0);
       } else {
         Swal.fire({
           icon: 'error',
@@ -774,6 +777,33 @@ Untuk setiap materi pokok, buatkan 3 Tujuan Pembelajaran (TP) sesuai level kogni
               <div className="bg-cyan-50 border border-cyan-100 rounded-lg p-4 mb-4">
                  <p className="text-gray-700 font-medium">Bantu kami menjadi lebih baik! Pesan yang Anda kirim di bawah ini akan langsung masuk ke WhatsApp Admin <strong>{appConfig.appName}</strong>.</p>
               </div>
+
+              <div className="mb-6">
+                <label className="block text-sm font-semibold text-gray-700 mb-3">Seberapa puas Anda dengan aplikasi ini?</label>
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      onClick={() => setFeedbackRating(star)}
+                      className="transition-transform hover:scale-110 focus:outline-none"
+                    >
+                      <Star 
+                        className={`w-10 h-10 ${star <= feedbackRating ? 'text-amber-400 fill-amber-400' : 'text-gray-300'}`} 
+                        strokeWidth={1.5}
+                      />
+                    </button>
+                  ))}
+                  {feedbackRating > 0 && (
+                    <span className="ml-3 self-center font-bold text-amber-600 bg-amber-50 px-3 py-1 rounded-full border border-amber-200">
+                      {feedbackRating === 5 ? 'Sangat Puas! 😍' : 
+                       feedbackRating === 4 ? 'Puas 🙂' : 
+                       feedbackRating === 3 ? 'Cukup 😐' : 
+                       feedbackRating === 2 ? 'Kecewa ☹️' : 'Sangat Kecewa 😡'}
+                    </span>
+                  )}
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Tuliskan Pesan Anda</label>
                 <textarea 

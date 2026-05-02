@@ -8,7 +8,7 @@ import { IdeaModal } from './Modals';
 import { RppData } from '../types';
 import { makeApiCall } from '../lib/api';
 import { AppConfig, User, logActivity, getUserHistory, updatePassword, getUserDocuments, SavedDocument, getDocumentById, deleteDocument } from '../lib/store';
-import { User as UserIcon, Clock, History, Key, X, Check, Menu, HelpCircle, LogOut, FileText, Download, MessageSquare, ChevronDown, Trash2, Star } from 'lucide-react';
+import { User as UserIcon, Clock, History, Key, X, Check, Menu, HelpCircle, LogOut, FileText, Download, MessageSquare, ChevronDown, Trash2, Star, MapPin, Phone, Mail, Globe } from 'lucide-react';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import Swal from 'sweetalert2';
@@ -884,6 +884,77 @@ Untuk setiap materi pokok, buatkan 3 Tujuan Pembelajaran (TP) sesuai level kogni
                       <h4 className="font-bold text-slate-800 text-lg mb-1">Kritik & Saran</h4>
                       <p className="text-sm text-gray-600 font-medium">Ada request fitur? Aplikasi bermasalah? Atau sekedar memberikan masukan? Gunakan form di halaman ini untuk terhubung langsung dengan Developer.</p>
                     </div>
+                  </div>
+                </div>
+              </section>
+
+              <section>
+                <h3 className="text-xl font-bold text-slate-800 mb-4 border-l-4 border-red-500 pl-3">Kontak Kami</h3>
+                <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-6">
+                  <div className="flex gap-4 items-start">
+                    <div className="p-3 bg-red-50 text-red-600 rounded-lg shrink-0"><MapPin className="w-5 h-5" /></div>
+                    <div>
+                      <h4 className="font-bold text-slate-800">Alamat SMPN 2 Sukorejo</h4>
+                      <p className="text-sm text-gray-600 leading-relaxed">
+                        Jl. Desa Sebandung Kecamatan Sukorejo Kabupaten Pasuruan Jawa Timur<br />
+                        <strong>Kode Pos: 67161</strong>
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex gap-4 items-center p-3 rounded-xl bg-gray-50 border border-gray-100">
+                      <div className="p-2.5 bg-white text-green-600 rounded-lg shadow-sm shrink-0"><Phone className="w-5 h-5" /></div>
+                      <div>
+                        <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider opacity-60">Telepon</h4>
+                        <p className="text-sm font-semibold text-gray-700">08113663900</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-4 items-center p-3 rounded-xl bg-gray-50 border border-gray-100">
+                      <div className="p-2.5 bg-white text-emerald-600 rounded-lg shadow-sm shrink-0"><MessageSquare className="w-5 h-5" /></div>
+                      <div>
+                        <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider opacity-60">Whatsapp (WA)</h4>
+                        <p className="text-sm font-semibold text-gray-700">082139154024</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4 items-center p-3 rounded-xl bg-gray-50 border border-gray-100">
+                    <div className="p-2.5 bg-white text-blue-600 rounded-lg shadow-sm shrink-0"><Mail className="w-5 h-5" /></div>
+                    <div>
+                      <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider opacity-60">E-mail</h4>
+                      <p className="text-sm font-semibold text-gray-700">smpnduasukorejo@yahoo.co.id</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 pt-4 border-t border-gray-100">
+                    <h4 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                       <Globe className="w-5 h-5 text-blue-500" /> Lokasi Sekolah
+                    </h4>
+                    <div className="relative group overflow-hidden rounded-2xl border-4 border-gray-50 shadow-inner">
+                      <img 
+                        src="https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&q=80&w=1200" 
+                        alt="Peta Lokasi" 
+                        className="w-full h-56 object-cover transition-transform duration-700 group-hover:scale-110"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent flex items-end p-6 transition-opacity group-hover:bg-black/40">
+                        <div className="w-full flex justify-between items-end">
+                          <div className="text-white">
+                            <p className="font-bold text-lg mb-1">SMPN 2 Sukorejo</p>
+                            <p className="text-xs text-white/80">Kabupaten Pasuruan, Jawa Timur</p>
+                          </div>
+                          <a 
+                            href="https://share.google/hk7fsUCPdzU5BOk7c" 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-bold shadow-xl transition-all transform hover:-translate-y-1 flex items-center gap-2 text-sm"
+                          >
+                            <MapPin className="w-4 h-4" /> Buka Maps
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-center mt-3 text-xs font-medium text-gray-400 italic">Klik tombol di atas untuk mendapatkan rute navigasi terbaik</p>
                   </div>
                 </div>
               </section>

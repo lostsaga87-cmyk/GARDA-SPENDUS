@@ -8,7 +8,7 @@ import { IdeaModal } from './Modals';
 import { RppData } from '../types';
 import { makeApiCall } from '../lib/api';
 import { AppConfig, User, logActivity, getUserHistory, updatePassword, getUserDocuments, SavedDocument, getDocumentById, deleteDocument } from '../lib/store';
-import { User as UserIcon, Clock, History, Key, X, Check, Menu, HelpCircle, LogOut, FileText, Download, MessageSquare, ChevronDown, Trash2, Star, MapPin, Phone, Mail, Globe } from 'lucide-react';
+import { User as UserIcon, Clock, History, Key, X, Check, Menu, HelpCircle, LogOut, FileText, Download, MessageSquare, ChevronDown, Trash2, Star, MapPin, Phone, Mail, Globe, LayoutTemplate } from 'lucide-react';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import Swal from 'sweetalert2';
@@ -55,7 +55,7 @@ export default function MainApp({ onLogout, appConfig, currentUser }: { onLogout
     });
   };
 
-  const [currentView, setCurrentView] = useState<'generator' | 'profile' | 'history' | 'documents' | 'feedback' | 'help'>('generator');
+  const [currentView, setCurrentView] = useState<'generator' | 'profile' | 'history' | 'documents' | 'kop' | 'feedback' | 'help'>('generator');
   const [showIdeaModal, setShowIdeaModal] = useState(false);
   
   const [feedbackMsg, setFeedbackMsg] = useState('');
@@ -98,7 +98,14 @@ export default function MainApp({ onLogout, appConfig, currentUser }: { onLogout
     namaKepsek: currentUser.namaKepsek || '',
     noHp: currentUser.noHp || '',
     mapel: currentUser.mapel || [],
-    profile_picture: currentUser.profile_picture || ''
+    profile_picture: currentUser.profile_picture || '',
+    kop_instansi: currentUser.kop_instansi || '',
+    kop_dinas: currentUser.kop_dinas || '',
+    kop_nama_sekolah: currentUser.kop_nama_sekolah || '',
+    kop_alamat: currentUser.kop_alamat || '',
+    kop_kontak: currentUser.kop_kontak || '',
+    kop_website: currentUser.kop_website || '',
+    kop_sekolah_image: currentUser.kop_sekolah_image || ''
   });
 
   // Photo Cropper State
@@ -360,6 +367,13 @@ Untuk setiap materi pokok, buatkan 3 Tujuan Pembelajaran (TP) sesuai level kogni
       currentUser.noHp = editProfileData.noHp;
       currentUser.mapel = editProfileData.mapel;
       currentUser.profile_picture = editProfileData.profile_picture;
+      currentUser.kop_instansi = editProfileData.kop_instansi;
+      currentUser.kop_dinas = editProfileData.kop_dinas;
+      currentUser.kop_nama_sekolah = editProfileData.kop_nama_sekolah;
+      currentUser.kop_alamat = editProfileData.kop_alamat;
+      currentUser.kop_kontak = editProfileData.kop_kontak;
+      currentUser.kop_website = editProfileData.kop_website;
+      currentUser.kop_sekolah_image = editProfileData.kop_sekolah_image;
       
     } catch (err) {
       console.error(err);
@@ -438,7 +452,14 @@ Untuk setiap materi pokok, buatkan 3 Tujuan Pembelajaran (TP) sesuai level kogni
                       namaKepsek: currentUser.namaKepsek || '',
                       noHp: currentUser.noHp || '',
                       mapel: currentUser.mapel || [],
-                      profile_picture: currentUser.profile_picture || ''
+                      profile_picture: currentUser.profile_picture || '',
+                      kop_instansi: currentUser.kop_instansi || '',
+                      kop_dinas: currentUser.kop_dinas || '',
+                      kop_nama_sekolah: currentUser.kop_nama_sekolah || '',
+                      kop_alamat: currentUser.kop_alamat || '',
+                      kop_kontak: currentUser.kop_kontak || '',
+                      kop_website: currentUser.kop_website || '',
+                      kop_sekolah_image: currentUser.kop_sekolah_image || ''
                     });
                   } else {
                     setIsEditingProfile(true);
@@ -767,6 +788,79 @@ Untuk setiap materi pokok, buatkan 3 Tujuan Pembelajaran (TP) sesuai level kogni
             )}
           </div>
         );
+      case 'kop':
+        return (
+          <div className="w-full max-w-2xl mx-auto bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2 border-b pb-4">
+              <LayoutTemplate className="w-6 h-6 text-indigo-600" /> Pengaturan Kop Sekolah
+            </h2>
+            <form onSubmit={handleSaveProfile} className="space-y-6">
+              {profileMsg && (
+                <div className={`p-4 rounded border text-sm ${profileMsg.includes('berhasil') ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                  {profileMsg}
+                </div>
+              )}
+              
+              <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-xl mb-6 text-sm text-indigo-800 flex items-start gap-3">
+                <LayoutTemplate className="w-5 h-5 shrink-0 mt-0.5" />
+                <p>Silakan upload gambar Kop Sekolah Anda di sini. Gambar ini akan disematkan secara otomatis ketika dokumen diunduh atau dicetak. Untuk hasil terbaik, gunakan gambar dengan proporsi memanjang (landscape) dan berlatar belakang putih atau transparan.</p>
+              </div>
+
+              <div className="flex flex-col gap-4">
+                <label className="block text-sm font-medium text-gray-700">Gambar Kop Sekolah</label>
+                
+                {editProfileData.kop_sekolah_image ? (
+                  <div className="relative border border-gray-200 rounded-lg p-2 bg-gray-50 text-center">
+                    <img src={editProfileData.kop_sekolah_image} alt="Kop Sekolah" className="max-w-full max-h-48 object-contain mx-auto" />
+                    <button 
+                      type="button" 
+                      onClick={() => setEditProfileData(prev => ({...prev, kop_sekolah_image: ''}))}
+                      className="absolute top-2 right-2 bg-red-100 text-red-600 p-1 rounded hover:bg-red-200"
+                      title="Hapus gambar"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 flex flex-col items-center justify-center text-gray-500 hover:border-indigo-400 hover:bg-indigo-50/50 transition-colors cursor-pointer group relative">
+                    <LayoutTemplate className="w-10 h-10 mb-2 text-gray-400 group-hover:text-indigo-500 transition-colors" />
+                    <p className="text-sm font-medium">Klik untuk memilih gambar</p>
+                    <p className="text-xs mt-1 opacity-70">PNG, JPG, max 2MB disarankan</p>
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          if (file.size > 2 * 1024 * 1024) {
+                            alert('Ukuran file terlalu besar. Maksimal 2MB.');
+                            return;
+                          }
+                          const reader = new FileReader();
+                          reader.onloadend = () => {
+                            setEditProfileData(prev => ({...prev, kop_sekolah_image: reader.result as string}));
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="pt-4 border-t border-gray-200 flex justify-end">
+                <button 
+                  type="submit" 
+                  disabled={isSavingProfile}
+                  className="px-6 py-2.5 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 transition-colors disabled:opacity-70 flex items-center justify-center gap-2 w-full sm:w-auto"
+                >
+                  {isSavingProfile ? 'Menyimpan...' : 'Simpan Kop Sekolah'}
+                </button>
+              </div>
+            </form>
+          </div>
+        );
       case 'feedback':
         return (
           <div className="w-full max-w-2xl mx-auto bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
@@ -995,6 +1089,7 @@ Untuk setiap materi pokok, buatkan 3 Tujuan Pembelajaran (TP) sesuai level kogni
                   apiKeys={appConfig.apiKeys}
                   onBack={() => setShowOutput(false)}
                   userId={currentUser.id}
+                  currentUser={currentUser}
                 />
               </div>
             )}
@@ -1039,6 +1134,10 @@ Untuk setiap materi pokok, buatkan 3 Tujuan Pembelajaran (TP) sesuai level kogni
               <div className="p-1 rounded bg-emerald-500/10"><FileText className="w-4 h-4 shrink-0 text-emerald-400" /></div>
               {(isSidebarOpen || (window.innerWidth >= 1024 && isSidebarOpen)) && <span>Dokumen Anda</span>}
             </button>
+            <button onClick={() => setCurrentView('kop')} className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${!isSidebarOpen && 'lg:justify-center'} ${currentView === 'kop' ? 'bg-indigo-600/20 text-indigo-400 font-medium' : 'hover:bg-slate-800 text-slate-400'}`} title="Upload Kop Sekolah">
+              <div className="p-1 rounded bg-indigo-500/10"><LayoutTemplate className="w-4 h-4 shrink-0 text-indigo-400" /></div>
+              {(isSidebarOpen || (window.innerWidth >= 1024 && isSidebarOpen)) && <span>Upload Kop Sekolah</span>}
+            </button>
           </div>
 
           <div className="mt-auto flex flex-col gap-1 pt-4 border-t border-slate-800">
@@ -1071,6 +1170,7 @@ Untuk setiap materi pokok, buatkan 3 Tujuan Pembelajaran (TP) sesuai level kogni
               {currentView === 'profile' && 'Profil Pengguna'}
               {currentView === 'history' && 'Riwayat Aktivitas'}
               {currentView === 'documents' && 'Dokumen Tersimpan'}
+              {currentView === 'kop' && 'Pengaturan Kop Sekolah'}
               {currentView === 'feedback' && 'Kritik & Saran'}
               {currentView === 'help' && 'Pusat Bantuan'}
             </h1>

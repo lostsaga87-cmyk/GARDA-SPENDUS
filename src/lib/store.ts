@@ -12,6 +12,13 @@ export interface User {
   role: 'admin' | 'user';
   status: 'approved' | 'pending' | 'rejected';
   profile_picture?: string;
+  kop_instansi?: string;
+  kop_dinas?: string;
+  kop_nama_sekolah?: string;
+  kop_alamat?: string;
+  kop_kontak?: string;
+  kop_website?: string;
+  kop_sekolah_image?: string;
 }
 
 export interface AppConfig {
@@ -97,7 +104,14 @@ export async function loginUser(nip: string, password: string): Promise<User | n
     nip: data.nip,
     namaKepsek: data.nama_kepsek,
     mapel: parsedMapel,
-    profile_picture: data.profile_picture
+    profile_picture: data.profile_picture,
+    kop_instansi: data.kop_instansi,
+    kop_dinas: data.kop_dinas,
+    kop_nama_sekolah: data.kop_nama_sekolah,
+    kop_alamat: data.kop_alamat,
+    kop_kontak: data.kop_kontak,
+    kop_website: data.kop_website,
+    kop_sekolah_image: data.kop_sekolah_image
   };
 }
 
@@ -136,7 +150,14 @@ export async function getUsers(): Promise<User[]> {
       nip: d.nip,
       namaKepsek: d.nama_kepsek,
       mapel: parsedMapel,
-      profile_picture: d.profile_picture
+      profile_picture: d.profile_picture,
+      kop_instansi: d.kop_instansi,
+      kop_dinas: d.kop_dinas,
+      kop_nama_sekolah: d.kop_nama_sekolah,
+      kop_alamat: d.kop_alamat,
+      kop_kontak: d.kop_kontak,
+      kop_website: d.kop_website,
+      kop_sekolah_image: d.kop_sekolah_image
     };
   });
 }
@@ -160,6 +181,13 @@ export async function updateUserProfile(userId: string, updates: Partial<User>) 
   if (updates.noHp !== undefined) dbUpdates.no_hp = updates.noHp;
   if (updates.mapel !== undefined) dbUpdates.mapel = updates.mapel;
   if (updates.profile_picture !== undefined) dbUpdates.profile_picture = updates.profile_picture;
+  if (updates.kop_instansi !== undefined) dbUpdates.kop_instansi = updates.kop_instansi;
+  if (updates.kop_dinas !== undefined) dbUpdates.kop_dinas = updates.kop_dinas;
+  if (updates.kop_nama_sekolah !== undefined) dbUpdates.kop_nama_sekolah = updates.kop_nama_sekolah;
+  if (updates.kop_alamat !== undefined) dbUpdates.kop_alamat = updates.kop_alamat;
+  if (updates.kop_kontak !== undefined) dbUpdates.kop_kontak = updates.kop_kontak;
+  if (updates.kop_website !== undefined) dbUpdates.kop_website = updates.kop_website;
+  if (updates.kop_sekolah_image !== undefined) dbUpdates.kop_sekolah_image = updates.kop_sekolah_image;
 
   const { error } = await supabase.from('users').update(dbUpdates).eq('id', userId);
   if (error) throw error;

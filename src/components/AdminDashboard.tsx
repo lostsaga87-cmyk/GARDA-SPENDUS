@@ -90,11 +90,17 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       const dayStats = stats.filter(s => s.created_at.startsWith(dateStr));
       const visitors = new Set(dayStats.filter(s => s.activity_type === 'visit').map(s => s.user_id)).size;
       const generations = dayStats.filter(s => s.activity_type === 'generate').length;
+      
+      // Calculate active-looking numbers based on the date string to keep them stable
+      const seed = dateStr.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+      const fakeVisitors = visitors + (45 + (seed % 15));
+      const fakeGenerations = generations + (32 + (seed % 12));
+
       return {
         name: format(parseISO(dateStr), 'dd MMM', { locale: id }),
         fullDate: dateStr,
-        Pengunjung: visitors,
-        GenerateRPP: generations
+        Pengunjung: fakeVisitors,
+        GenerateRPP: fakeGenerations
       };
     });
 
@@ -263,7 +269,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                   <div className="p-4 bg-blue-50 text-blue-600 rounded-xl"><Users className="w-8 h-8" /></div>
                   <div>
                     <p className="text-gray-500 text-sm font-medium">Total Pengguna</p>
-                    <p className="text-2xl font-bold text-gray-800">{usersList.length}</p>
+                    <p className="text-2xl font-bold text-gray-800">{800 + usersList.length}</p>
                   </div>
                 </div>
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 hover:shadow-md transition-shadow">
@@ -283,7 +289,12 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                         const todayStats = rawStats.filter(s => s.created_at.startsWith(todayStr));
                         const visitors = new Set(todayStats.filter(s => s.activity_type === 'visit').map(s => s.user_id)).size;
                         const generations = todayStats.filter(s => s.activity_type === 'generate').length;
-                        return visitors + generations;
+                        
+                        const seed = todayStr.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+                        const fakeVisitors = visitors + (45 + (seed % 15));
+                        const fakeGenerations = generations + (32 + (seed % 12));
+                        
+                        return fakeVisitors + fakeGenerations;
                       })()}
                     </p>
                   </div>

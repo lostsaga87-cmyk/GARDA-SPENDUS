@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Printer, FileText, Edit, Save, ArrowLeft, Download } from 'lucide-react';
 import { RppData } from '../types';
 import { makeApiCall } from '../lib/api';
-import { saveDocument } from '../lib/store';
+import { saveDocument, User } from '../lib/store';
 import MiniGame from './MiniGame';
 
 interface OutputSectionProps {
@@ -11,9 +11,10 @@ interface OutputSectionProps {
   apiKeys: string[];
   onBack: () => void;
   userId: string;
+  currentUser?: User;
 }
 
-export default function OutputSection({ rppData, setRppData, apiKeys, onBack, userId }: OutputSectionProps) {
+export default function OutputSection({ rppData, setRppData, apiKeys, onBack, userId, currentUser }: OutputSectionProps) {
   const [step, setStep] = useState<number>(3); // 3: TP, 4: ATP, 5: KKTP, 6: RPP
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -132,10 +133,39 @@ export default function OutputSection({ rppData, setRppData, apiKeys, onBack, us
     }
   };
 
+  const getKopSuratHtml = () => {
+    if (!currentUser) return '';
+    
+    if (currentUser.kop_sekolah_image) {
+      return `
+        <div style="width: 100%; text-align: center; margin-bottom: 20px;">
+          <img src="${currentUser.kop_sekolah_image}" style="max-width: 100%; max-height: 200px; object-fit: contain;" alt="Kop Sekolah" />
+        </div>
+      `;
+    }
+
+    if (!currentUser.kop_instansi && !currentUser.kop_nama_sekolah) return '';
+    return `
+      <table class="no-border" style="width: 100%; border-bottom: 4px double #000; margin-bottom: 20px; border-collapse: collapse; border: none; margin-top: 0;">
+        <tr>
+          <td style="text-align: center; border: none; padding: 0;">
+            ${currentUser.kop_instansi ? `<div style="font-size: 14pt; font-weight: normal; margin-bottom: 2px;">${currentUser.kop_instansi}</div>` : ''}
+            ${currentUser.kop_dinas ? `<div style="font-size: 16pt; font-weight: bold; margin-bottom: 2px;">${currentUser.kop_dinas}</div>` : ''}
+            ${currentUser.kop_nama_sekolah ? `<div style="font-size: 18pt; font-weight: bold; margin-bottom: 2px;">${currentUser.kop_nama_sekolah}</div>` : ''}
+            ${currentUser.kop_alamat ? `<div style="font-size: 11pt; margin-top: 5px; margin-bottom: 2px;">${currentUser.kop_alamat}</div>` : ''}
+            ${currentUser.kop_kontak ? `<div style="font-size: 11pt; margin-bottom: 5px;">${currentUser.kop_kontak} ${currentUser.kop_website ? `| Website: ${currentUser.kop_website}` : ''}</div>` : ''}
+          </td>
+        </tr>
+      </table>
+    `;
+  };
+
   const handlePrint = (contentId: string, title: string) => {
     const contentElement = document.getElementById(contentId);
     if (!contentElement) return;
     
+    const kopHtml = getKopSuratHtml();
+
     // In an iframe (like AI Studio preview), window.open might be blocked or have issues printing.
     // Instead, we will inject an iframe, write to it, and print from it.
     const iframe = document.createElement('iframe');
@@ -173,7 +203,7 @@ export default function OutputSection({ rppData, setRppData, apiKeys, onBack, us
               table.no-border td { border: none !important; }
             </style>
           </head>
-          <body>${contentElement.innerHTML}</body>
+          <body>${kopHtml}${contentElement.innerHTML}</body>
         </html>
       `);
       doc.close();
@@ -197,7 +227,9 @@ export default function OutputSection({ rppData, setRppData, apiKeys, onBack, us
   };
 
   const handleDownloadWord = (contentId: string, filename: string) => {
-    const content = document.getElementById(contentId)?.innerHTML || '';
+    const rawContent = document.getElementById(contentId)?.innerHTML || '';
+    const kopHtml = getKopSuratHtml();
+    const content = kopHtml + rawContent;
     
     // Create a complete HTML document that Word can understand better
     const wordDocument = `

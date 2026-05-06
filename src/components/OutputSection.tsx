@@ -635,9 +635,10 @@ async function createLangkahPembelajaran(data: RppData, topicData: any, apiKeys:
   const tpsJoined = topicData.tps.map((t:any) => t.text).join(', ');
   const prompt = `Anda adalah seorang guru inovatif. Rancang langkah-langkah pembelajaran dalam format tabel untuk sebuah pertemuan. Model Pembelajaran yang harus digunakan adalah: ${data.modelPembelajaran}. Bagian 'inti' dari pembelajaran HARUS secara eksplisit mengikuti sintaks/langkah-langkah dari model ${data.modelPembelajaran}. 
 Topik pertemuan ini adalah: '${topicData.topic}', dengan Tujuan Pembelajaran: '${tpsJoined}'. 
-PENTING: Durasi untuk pertemuan ini adalah tepat ${data.durasiPertemuan}. Anda HARUS menyesuaikan scope dan alokasi waktu dari setiap tahap (awal, inti, penutup) agar sangat realistis diselesaikan dalam estimasi durasi ${data.durasiPertemuan} tersebut (tuliskan estimasi menit untuk tiap baris di deskripsi).
-Selain itu, perhatikan Identifikasi Awal Siswa: Karakteristik: ${data.karakteristik}, Minat: ${data.minat}. Aktivitas awal (apersepsi/asesmen diagnostik singkat) harus secara spesifik mempertimbangkan identifikasi profil siswa ini.
-Format jawaban dalam JSON dengan kunci: 'awal', 'inti', dan 'penutup'. Masing-masing kunci berisi array objek. Setiap objek mewakili satu baris tabel dan harus memiliki kunci 'tahap' (untuk tahap inti, gunakan nama sintaks modelnya), 'prinsip' (pilih dari 'Berkesadaran', 'Bermakna', 'Menggembirakan'), dan 'deskripsi' (jelaskan aktivitas guru dan siswa secara rinci beserta alokasi waktu menitnya).`;
+PENTING: Durasi untuk pertemuan ini adalah tepat ${data.durasiPertemuan}. Anda HARUS menyesuaikan scope dan alokasi waktu dari setiap tahap (awal, inti, penutup) agar sangat realistis diselesaikan dalam estimasi durasi ${data.durasiPertemuan} tersebut. Tuliskan alokasi waktu dengan tag <strong> (contoh: <strong>15 menit</strong>) di setiap deskripsi.
+Kondisi Awal Siswa meliputi Karakteristik: ${data.karakteristik}, Minat: ${data.minat}, dan Lingkungan Sekolah: ${data.lingkungan}. 
+INSTRUKSI KHUSUS LINGKUNGAN: Jika "Lingkungan Sekolah" mendeskripsikan kondisi spesifik (lebih dari 1 kata, misal desa pesisir, dll), Anda HARUS memprioritaskan dan secara kreatif merancang aktivitas pembelajaran dan contoh kasus yang berbasis pada konteks lingkungan tersebut, tanpa mengabaikan identifikasi siswa lainnya. Deskripsi aktivitas harus secara langsung menyebutkan bagaimana lingkungan ini digunakan dalam materi/kegiatan kelas.
+Format jawaban dalam JSON dengan kunci: 'awal', 'inti', dan 'penutup'. Masing-masing kunci berisi array objek. Setiap objek mewakili satu baris tabel dan memiliki kunci 'tahap' (gunakan nama sintaks model untuk tahap inti), 'prinsip' (pilih dari 'Berkesadaran', 'Bermakna', 'Menggembirakan'), dan 'deskripsi'. Nilai 'deskripsi' HARUS berupa poin-poin menggunakan tag HTML <ul> dan <li> yang memuat urutan aktivitas guru dan siswa secara detail, BUKAN paragraf narasi atau deskripsi panjang.`;
   const schema = {
     type: "OBJECT",
     properties: {
@@ -727,7 +728,7 @@ async function createAsesmenAkhirAndLKPD(data: RppData, topicData: any, apiKeys:
   // Create a clean text version of the HTML to pass to the AI, removing tags
   const cleanLangkah = langkahPembelajaranHtml.replace(/<[^>]*>?/gm, ' ').replace(/\s\s+/g, ' ').trim();
 
-  const prompt = `Anda adalah seorang ahli kurikulum dan pendidikan. Berdasarkan materi: '${topicData.topic}' dengan tujuan pembelajaran: '${tpsJoined}'. Kelas: '${data.kelasSemester}', Alokasi Waktu Keseluruhan: '${data.alokasiWaktu}', Durasi Pertemuan ini: '${data.durasiPertemuan}'. Model Pembelajaran yang digunakan adalah: '${data.modelPembelajaran}'. Identifikasi karakteristik siswa: ${data.karakteristik}, Minat: ${data.minat}.
+  const prompt = `Anda adalah seorang ahli kurikulum dan pendidikan. Berdasarkan materi: '${topicData.topic}' dengan tujuan pembelajaran: '${tpsJoined}'. Kelas: '${data.kelasSemester}', Alokasi Waktu Keseluruhan: '${data.alokasiWaktu}', Durasi Pertemuan ini: '${data.durasiPertemuan}'. Model Pembelajaran yang digunakan adalah: '${data.modelPembelajaran}'. Kondisi Siswa: Karakteristik: ${data.karakteristik}, Minat: ${data.minat}, dan Lingkungan Sekolah: ${data.lingkungan}.
   
   PENTING SEKALI: Sebelumnya telah disusun Langkah Pembelajaran / Kegiatan Inti (skenario diskusi/proyek/aktivitas kelas) sebagai berikut:
   """
@@ -737,6 +738,7 @@ async function createAsesmenAkhirAndLKPD(data: RppData, topicData: any, apiKeys:
   Buatlah dua hal secara bersamaan:
   1. Rubrik Penilaian untuk Lembar Kerja Peserta Didik (LKPD).
   2. Konten LKPD yang HARUS SANGAT SELARAS dengan skenario pokok bahasan pada kegiatan inti di atas. (JANGAN membuat topik atau skenario baru yang berbeda jalur. Jika kegiatan intinya siswa mencari A, LKPD-nya harus tentang mencari A). Konten harus berbasis proyek jika instruksi adalah PjBL, masalah jika PBL, dsb sesuai desain tabel tersebut.
+  INSTRUKSI KHUSUS LINGKUNGAN: Jika "Lingkungan Sekolah" mendeskripsikan kondisi spesifik (lebih dari 1 kata, misal desa pesisir, dll), Anda HARUS sangat mengutamakan integrasi kondisi tersebut sebagai studi kasus, sumber belajar, bahan proyek, atau tema permasalahan utama dalam LKPD ini, menyesuaikan dengan aktivitas yang ada di Langkah Pembelajaran.
   PENTING TAMBAHAN: Durasi untuk pertemuan ini adalah tepat ${data.durasiPertemuan}. Anda HARUS menyesuaikan scope/kesulitan tugas di LKPD agar logis diselesaikan dalam tenggat waktu tersebut di kelas. Nilai "alokasi_waktu" di LKPD HARUS diisi persis sama dengan nilai: "${data.durasiPertemuan}".
   Selain itu, tambahkan rekomendasi media sumber belajar (Video / Gambar) berupa URL relevan yang bisa diakses untuk membantu/menunjang pengerjaan LKPD siswa. Contoh url: https://www.youtube.com/results?search_query=... atau https://id.wikipedia.org/wiki/...
 

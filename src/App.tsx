@@ -16,6 +16,7 @@ export default function App() {
   const [currentScreen, setCurrentScreen] = useState<'login' | 'register' | 'main' | 'admin'>('login');
   const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isEntering, setIsEntering] = useState(false);
 
   useEffect(() => {
     if (isSupabaseConfigured()) {
@@ -44,13 +45,19 @@ export default function App() {
   }, []);
 
   const handleLogin = async (user: User) => {
-    setCurrentUser(user);
-    if (user.role === 'admin') {
-      setCurrentScreen('admin');
-    } else {
-      setCurrentScreen('main');
-      await logActivity(user.id, 'visit');
-    }
+    setIsEntering(true);
+    
+    // Memberikan efek visual "memasuki" ruang kerja
+    setTimeout(() => {
+      setCurrentUser(user);
+      if (user.role === 'admin') {
+        setCurrentScreen('admin');
+      } else {
+        setCurrentScreen('main');
+        logActivity(user.id, 'visit').catch(console.error);
+      }
+      setIsEntering(false);
+    }, 2500);
   };
 
   const handleLogout = () => {
@@ -81,7 +88,39 @@ export default function App() {
   }
 
   if (loading || !appConfig) {
-    return <div className="min-h-screen flex items-center justify-center bg-gray-100">Memuat konfigurasi aplikasi...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 flex-col">
+        <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-4"></div>
+        <p className="text-gray-600 font-medium animate-pulse">Menyiapkan Ruang Kerja Anda...</p>
+      </div>
+    );
+  }
+
+  if (isEntering) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-900 overflow-hidden relative">
+        <div className="absolute top-[20%] left-[20%] w-[40vw] h-[40vw] rounded-full bg-blue-600/30 blur-[120px] pointer-events-none animate-pulse" style={{ animationDuration: '4s' }}></div>
+        <div className="absolute bottom-[20%] right-[20%] w-[30vw] h-[30vw] rounded-full bg-indigo-500/20 blur-[100px] pointer-events-none animate-pulse" style={{ animationDuration: '5s' }}></div>
+        
+        <div className="relative z-10 flex flex-col items-center justify-center">
+          <div className="relative w-24 h-24 mb-8">
+             <div className="absolute inset-0 border-t-4 border-blue-500 rounded-full animate-spin"></div>
+             <div className="absolute inset-2 border-r-4 border-cyan-400 rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
+             <div className="absolute inset-4 border-b-4 border-indigo-500 rounded-full animate-spin" style={{ animationDuration: '2s' }}></div>
+             <div className="absolute inset-0 flex items-center justify-center">
+                <img src={appConfig?.appLogo} alt="Logo" className="w-8 h-8 object-contain animate-pulse" />
+             </div>
+          </div>
+          <h2 className="text-xl font-bold text-white tracking-widest uppercase shadow-sm mb-2">Memasuki Ruang Kerja</h2>
+          <div className="flex items-center gap-1.5">
+             <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+             <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+             <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+          </div>
+          <p className="mt-6 text-slate-400 text-sm font-medium tracking-wide animate-pulse">Menyiapkan profil dan preferensi Anda ...</p>
+        </div>
+      </div>
+    );
   }
 
   return (

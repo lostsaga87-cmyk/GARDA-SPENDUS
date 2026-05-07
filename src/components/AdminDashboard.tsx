@@ -92,9 +92,14 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       const generations = dayStats.filter(s => s.activity_type === 'generate').length;
       
       // Calculate active-looking numbers based on the date string to keep them stable
-      const seed = dateStr.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-      const fakeVisitors = visitors + (45 + (seed % 15));
-      const fakeGenerations = generations + (32 + (seed % 12));
+      const seed = dateStr.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) + parseInt(dateStr.replace(/-/g, ''));
+      
+      // Pastikan generasi tidak lebih dari 20
+      const randomGenBase = Math.floor(Math.abs(Math.cos(seed * 15.22)) * 16) + 1;
+      const fakeGenerations = Math.min(20, generations + randomGenBase);
+
+      // perbandingannya bisa dibuat 1 : 5 untuk grafiknya (Pengunjung = 5 * GenerateRPP)
+      const fakeVisitors = fakeGenerations * 5;
 
       return {
         name: format(parseISO(dateStr), 'dd MMM', { locale: id }),
@@ -269,7 +274,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                   <div className="p-4 bg-blue-50 text-blue-600 rounded-xl"><Users className="w-8 h-8" /></div>
                   <div>
                     <p className="text-gray-500 text-sm font-medium">Total Pengguna</p>
-                    <p className="text-2xl font-bold text-gray-800">{800 + usersList.length}</p>
+                    <p className="text-2xl font-bold text-gray-800">884</p>
                   </div>
                 </div>
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 hover:shadow-md transition-shadow">
@@ -290,9 +295,12 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                         const visitors = new Set(todayStats.filter(s => s.activity_type === 'visit').map(s => s.user_id)).size;
                         const generations = todayStats.filter(s => s.activity_type === 'generate').length;
                         
-                        const seed = todayStr.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-                        const fakeVisitors = visitors + (45 + (seed % 15));
-                        const fakeGenerations = generations + (32 + (seed % 12));
+                        const seed = todayStr.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) + parseInt(todayStr.replace(/-/g, ''));
+                        const randomGenBase = Math.floor(Math.abs(Math.cos(seed * 15.22)) * 16) + 1;
+                        const fakeGenerations = Math.min(20, generations + randomGenBase);
+                        
+                        // perbandingannya 1 : 5
+                        const fakeVisitors = fakeGenerations * 5;
                         
                         return fakeVisitors + fakeGenerations;
                       })()}

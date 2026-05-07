@@ -685,7 +685,7 @@ Untuk setiap materi pokok, buatkan 3 Tujuan Pembelajaran (TP) sesuai level kogni
               <div className="text-center py-12">
                 <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                 <p className="text-gray-500 font-medium">Belum ada dokumen yang disimpan.</p>
-                <p className="text-sm text-gray-400 mt-2">Generate Modul Ajar untuk menyimpan dokumen di sini.</p>
+                <p className="text-sm text-gray-400 mt-2">Generate Rencana Pembelajaran Mendalam untuk menyimpan dokumen di sini.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -930,11 +930,11 @@ Untuk setiap materi pokok, buatkan 3 Tujuan Pembelajaran (TP) sesuai level kogni
               </section>
 
               <section>
-                <h3 className="text-xl font-bold text-slate-800 mb-4 border-l-4 border-blue-500 pl-3">Cara Menggenerate Modul Ajar</h3>
+                <h3 className="text-xl font-bold text-slate-800 mb-4 border-l-4 border-blue-500 pl-3">Cara Menggenerate Rencana Pembelajaran Mendalam</h3>
                 <ul className="grid gap-3">
                   <li className="flex gap-3">
                     <span className="shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm">1</span>
-                    <span className="font-medium">Buka menu <strong>Buat Modul Ajar</strong> di panel sebelah kiri.</span>
+                    <span className="font-medium">Buka menu <strong>Buat Rencana Pembelajaran Mendalam</strong> di panel sebelah kiri.</span>
                   </li>
                   <li className="flex gap-3">
                     <span className="shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm">2</span>
@@ -969,7 +969,7 @@ Untuk setiap materi pokok, buatkan 3 Tujuan Pembelajaran (TP) sesuai level kogni
                     <div className="p-3 bg-green-100 text-green-600 rounded-lg shrink-0"><FileText className="w-6 h-6" /></div>
                     <div>
                       <h4 className="font-bold text-slate-800 text-lg mb-1">Dokumen Anda</h4>
-                      <p className="text-sm text-gray-600 font-medium">Meyimpan seluruh Modul Ajar dan RPP yang pernah berhasil Anda ciptakan dengan AI secara permanen. Anda dapat kembali sewaktu-waktu dan Mengunduh ulangnya.</p>
+                      <p className="text-sm text-gray-600 font-medium">Meyimpan seluruh Rencana Pembelajaran Mendalam dan RPP yang pernah berhasil Anda ciptakan dengan AI secara permanen. Anda dapat kembali sewaktu-waktu dan Mengunduh ulangnya.</p>
                     </div>
                   </div>
                   <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex gap-4 items-start hover:border-cyan-300 transition-colors">
@@ -1122,9 +1122,9 @@ Untuk setiap materi pokok, buatkan 3 Tujuan Pembelajaran (TP) sesuai level kogni
         
         <div className="flex-1 overflow-y-auto py-4 flex flex-col gap-2 px-3">
           <div className="flex flex-col mb-4 gap-1">
-            <button onClick={() => setCurrentView('generator')} className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${!isSidebarOpen && 'lg:justify-center'} ${currentView === 'generator' ? 'bg-blue-600/20 text-blue-400 font-medium' : 'hover:bg-slate-800 text-slate-400'}`} title="Buat Modul Ajar">
+            <button onClick={() => setCurrentView('generator')} className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${!isSidebarOpen && 'lg:justify-center'} ${currentView === 'generator' ? 'bg-blue-600/20 text-blue-400 font-medium' : 'hover:bg-slate-800 text-slate-400'}`} title="Buat RPM (Rencana Pembelajaran Mendalam)">
               <div className="p-1 rounded bg-blue-500/10"><Menu className="w-4 h-4 shrink-0 text-blue-400" /></div>
-              {(isSidebarOpen || (window.innerWidth >= 1024 && isSidebarOpen)) && <span>Buat Modul Ajar</span>}
+              {(isSidebarOpen || (window.innerWidth >= 1024 && isSidebarOpen)) && <span>Buat RPM</span>}
             </button>
             <button onClick={() => setCurrentView('history')} className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${!isSidebarOpen && 'lg:justify-center'} ${currentView === 'history' ? 'bg-purple-600/20 text-purple-400 font-medium' : 'hover:bg-slate-800 text-slate-400'}`} title="Riwayat Aktivitas">
               <div className="p-1 rounded bg-purple-500/10"><History className="w-4 h-4 shrink-0 text-purple-400" /></div>

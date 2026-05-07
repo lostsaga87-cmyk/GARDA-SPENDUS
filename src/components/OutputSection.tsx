@@ -573,10 +573,20 @@ async function createIdentifikasiMateri(data: RppData, apiKeys: string[]) {
 
 function createDimensiProfilLulusan(data: RppData) {
   const allProfils = ["Keimanan dan Ketakwaan terhadap Tuhan YME", "Kewargaan", "Penalaran Kritis", "Kreativitas", "Kolaborasi", "Kemandirian", "Kesehatan", "Komunikasi"];
-  let html = `<h4 style="font-weight: bold; font-size: 11pt; margin-top: 1rem; margin-bottom: 0.5rem;">Dimensi Profil Lulusan:</h4><p style="margin-bottom: 0.5rem;">Pilihlah dimensi profil lulusan yang akan dicapai dalam pembelajaran</p><table style="width: 100%; margin-bottom: 1rem; border: none;"><tr>`;
+  let html = `<h4 style="font-weight: bold; font-size: 11pt; margin-top: 1rem; margin-bottom: 0.5rem; color: #1e293b;">Dimensi Profil Lulusan:</h4><p style="margin-bottom: 0.75rem; color: #475569; font-size: 10pt;">Karakter dan kompetensi yang akan dicapai dalam pembelajaran:</p><table style="width: 100%; margin-bottom: 1rem; border: none; border-collapse: separate; border-spacing: 0 8px;"><tr>`;
   allProfils.forEach((profil, index) => {
     const isChecked = data.profilLulusan.includes(profil);
-    html += `<td style="border: none; padding: 0.25rem;">${isChecked ? '☑' : '☐'} DPL${index+1} ${profil}</td>`;
+    const checkBoxColor = isChecked ? '#059669' : '#94a3b8';
+    const textColor = isChecked ? '#0f172a' : '#475569';
+    const fontWeight = isChecked ? 'bold' : 'normal';
+    
+    html += `<td style="border: none; padding: 4px 8px; vertical-align: middle; width: 50%;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="color: ${checkBoxColor}; font-size: 16pt; font-family: 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif; display: inline-block; line-height: 1;">${isChecked ? '☑' : '☐'}</span>
+        <span style="color: ${textColor}; font-weight: ${fontWeight}; font-size: 10.5pt; line-height: 1.2;"><b>DPL${index+1}</b> - ${profil}</span>
+      </div>
+    </td>`;
+    
     if ((index + 1) % 2 === 0 && index < allProfils.length - 1) html += `</tr><tr>`;
   });
   html += `</tr></table>`;

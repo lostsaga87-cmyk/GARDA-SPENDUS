@@ -1,20 +1,85 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Users, Key, BookOpen, LayoutDashboard, LogOut, Check, X, Save, ShieldCheck, Activity, RefreshCw, Menu } from 'lucide-react';
-import { AppConfig, User, getAppConfig, updateAppConfig, getUsers, updateUserStatus, getActivityStats } from '../lib/store';
+import { Settings, Users, Key, BookOpen, LayoutDashboard, LogOut, Check, X, Save, ShieldCheck, Activity, RefreshCw, Menu, Bug, ArrowUpDown, ChevronUp, ChevronDown, Trash2 } from 'lucide-react';
+import { AppConfig, User, getAppConfig, updateAppConfig, getUsers, updateUserStatus, deleteUser, getActivityStats, getActivities, updateUserProfile, createDummyUser, injectFakeActivity } from '../lib/store';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { format, parseISO, subDays, differenceInDays, addDays, isBefore, isAfter, startOfDay } from 'date-fns';
 import { id } from 'date-fns/locale';
 import Swal from 'sweetalert2';
 
-export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
+export default function AdminDashboard({ currentUser, onLogout }: { currentUser: User, onLogout: () => void }) {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isSidebarMinimized, setIsSidebarMinimized] = useState(false);
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [usersList, setUsersList] = useState<User[]>([]);
+  const [activitiesList, setActivitiesList] = useState<any[]>([]);
   const [saveMessage, setSaveMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Admin Profile State
+  const [adminUsername, setAdminUsername] = useState(currentUser.username || '');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [adminName, setAdminName] = useState(currentUser.namaKepsek || '');
+  
   const [activityData, setActivityData] = useState<any[]>([]);
+  
+  // Secret / Dev Mode State
+  const [secretClickCount, setSecretClickCount] = useState(0);
+  const [showSecretTab, setShowSecretTab] = useState(false);
+  const [dummyCount, setDummyCount] = useState(1);
+  const [dummyVisitCount, setDummyVisitCount] = useState(1);
+  const [dummyGenerateCount, setDummyGenerateCount] = useState(1);
+  const [dummyVisitDate, setDummyVisitDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [dummyGenerateDate, setDummyGenerateDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
+  const [dummyUserIds, setDummyUserIds] = useState<string[]>([]);
+  const [dummyGenerateUserIds, setDummyGenerateUserIds] = useState<string[]>([]);
+
+  const sortedUsersList = React.useMemo(() => {
+    let sortableItems = [...usersList];
+    if (sortConfig !== null) {
+      sortableItems.sort((a, b) => {
+        let aValue = (a as any)[sortConfig.key] || '';
+        let bValue = (b as any)[sortConfig.key] || '';
+        if (typeof aValue === 'string') aValue = aValue.toLowerCase();
+        if (typeof bValue === 'string') bValue = bValue.toLowerCase();
+        
+        if (aValue < bValue) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    } else {
+      // By default, sort by nama (username)
+      sortableItems.sort((a, b) => {
+        const nameA = (a.username || '').toLowerCase();
+        const nameB = (b.username || '').toLowerCase();
+        return nameA.localeCompare(nameB);
+      });
+    }
+    return sortableItems;
+  }, [usersList, sortConfig]);
+
+  const requestSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const getSortIcon = (key: string) => {
+    if (!sortConfig || sortConfig.key !== key) {
+      return <ArrowUpDown className="w-4 h-4 text-gray-400" />;
+    }
+    if (sortConfig.direction === 'asc') {
+      return <ChevronUp className="w-4 h-4 text-blue-600" />;
+    }
+    return <ChevronDown className="w-4 h-4 text-blue-600" />;
+  };
   
   // Date Range State
   const [startDate, setStartDate] = useState(format(subDays(new Date(), 6), 'yyyy-MM-dd'));
@@ -33,13 +98,23 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     }
     
     try {
-      const [configData, usersData, statsData] = await Promise.all([
+      const [configData, usersData, statsData, activityList] = await Promise.all([
         getAppConfig(),
         getUsers(),
-        getActivityStats()
+        getActivityStats(),
+        getActivities()
       ]);
-      if (configData) setConfig(configData);
+      if (configData) {
+         // Pastikan ada config baru yang slotnya diperbanyak, API keys
+         // Di DB sudah TEXT array by supabase, kita asumsikan panjang bisa ditambah
+         const currentKeys = configData.apiKeys || [];
+         while (currentKeys.length < 20) { // misal asalnya 10, ditambah 10an jadi lebih banyak
+           currentKeys.push('');
+         }
+         setConfig({...configData, apiKeys: currentKeys});
+      }
       setUsersList(usersData);
+      setActivitiesList(activityList);
       setRawStats(statsData);
       
       // Process stats data for charts
@@ -90,26 +165,123 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       const dayStats = stats.filter(s => s.created_at.startsWith(dateStr));
       const visitors = new Set(dayStats.filter(s => s.activity_type === 'visit').map(s => s.user_id)).size;
       const generations = dayStats.filter(s => s.activity_type === 'generate').length;
-      
-      // Calculate active-looking numbers based on the date string to keep them stable
-      const seed = dateStr.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) + parseInt(dateStr.replace(/-/g, ''));
-      
-      // Pastikan generasi tidak lebih dari 20
-      const randomGenBase = Math.floor(Math.abs(Math.cos(seed * 15.22)) * 16) + 1;
-      const fakeGenerations = Math.min(20, generations + randomGenBase);
-
-      // perbandingannya bisa dibuat 1 : 5 untuk grafiknya (Pengunjung = 5 * GenerateRPP)
-      const fakeVisitors = fakeGenerations * 5;
 
       return {
         name: format(parseISO(dateStr), 'dd MMM', { locale: id }),
         fullDate: dateStr,
-        Pengunjung: fakeVisitors,
-        GenerateRPP: fakeGenerations
+        Pengunjung: visitors,
+        GenerateRPM: generations
       };
     });
 
     setActivityData(chartData);
+  };
+
+  const handleUpdateAdminProfile = async () => {
+    try {
+      const updates: any = {
+        username: adminUsername,
+        namaKepsek: adminName
+      };
+      if (adminPassword.trim() !== '') {
+        updates.password = adminPassword;
+      }
+      await updateUserProfile(currentUser.id, updates);
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'success',
+        title: 'Profil Admin berhasil diperbarui',
+        showConfirmButton: false,
+        timer: 3000
+      });
+      setAdminPassword('');
+    } catch (err) {
+      console.error(err);
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'error',
+        title: 'Gagal memperbarui profil',
+        showConfirmButton: false,
+        timer: 3000
+      });
+    }
+  };
+
+  const handleSecretClick = () => {
+    setSecretClickCount(prev => {
+      const newCount = prev + 1;
+      if (newCount === 5) {
+        setShowSecretTab(true);
+        setActiveTab('dev');
+        Swal.fire({
+          toast: true,
+          position: 'top-end',
+          icon: 'success',
+          title: 'Dev / Secret Mode Unlocked!',
+          showConfirmButton: false,
+          timer: 3000
+        });
+        return 0; // reset after triggering
+      }
+      
+      // Auto reset if not clicked quickly (1.5 seconds)
+      setTimeout(() => setSecretClickCount(0), 1000);
+      return newCount;
+    });
+  };
+
+  const handleGenerateFakeSpecific = async (type: 'users' | 'visit' | 'generate') => {
+    try {
+      Swal.fire({
+        title: 'Generating Data...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+      });
+
+      if (type === 'users') {
+        const adjs = ["Ahmad", "Budi", "Citra", "Dewi", "Eka", "Fajar", "Gita", "Hadi", "Intan", "Joko"];
+        const nouns = ["Wijaya", "Kusuma", "Santoso", "Sari", "Raharjo", "Hidayat", "Putra", "Putri", "Pratama", "Lestari"];
+        const schools = ["SMPN 1", "SMPN 2", "SMPN 3", "SMPN 4", "SMPN 5", "SMAN 1", "SMAN 2", "SDN 1", "SDN 2", "SMP Muhammadiyah", "SMA Al-Azhar"];
+        const cities = ["Jakarta", "Bandung", "Surabaya", "Malang", "Pasuruan", "Sidoarjo", "Yogyakarta", "Semarang", "Madiun"];
+        const titles = ["S.Pd", "S.Pd", "S.Pd", "S.Pd", "M.Pd", "S.Pd.I", "S.Kom", ""];
+
+        for (let i = 0; i < dummyCount; i++) {
+          const randTitle = titles[Math.floor(Math.random() * titles.length)];
+          const randNameText = `${adjs[Math.floor(Math.random() * adjs.length)]} ${nouns[Math.floor(Math.random() * nouns.length)]}`;
+          const randName = randTitle ? `${randNameText}, ${randTitle}` : randNameText;
+          
+          const randSchool = `${schools[Math.floor(Math.random() * schools.length)]} ${cities[Math.floor(Math.random() * cities.length)]}`;
+          const nip = `198${Math.floor(Math.random() * 9)}0${Math.floor(Math.random() * 10000000)}`;
+
+          await createDummyUser(randName, nip, randSchool);
+        }
+      } else if (type === 'visit') {
+        const targets = dummyUserIds.length > 0 ? dummyUserIds : [currentUser.id];
+        for (const targetUser of targets) {
+          for (let i = 0; i < dummyVisitCount; i++) {
+            await injectFakeActivity(targetUser, 'visit', `Login ke aplikasi`, `${dummyVisitDate}T10:00:00Z`);
+          }
+        }
+      } else if (type === 'generate') {
+        const targets = dummyGenerateUserIds.length > 0 ? dummyGenerateUserIds : [currentUser.id];
+        const mapels = ["Bahasa Indonesia", "Matematika", "IPA", "IPS", "Bahasa Inggris", "Pendidikan Pancasila", "PJOK"];
+        const kelas = ["7 / Ganjil", "7 / Genap", "8 / Ganjil", "8 / Genap", "9 / Ganjil", "9 / Genap"];
+
+        for (const targetUser of targets) {
+          for (let i = 0; i < dummyGenerateCount; i++) {
+            const mapel = mapels[Math.floor(Math.random() * mapels.length)];
+            const kl = kelas[Math.floor(Math.random() * kelas.length)];
+            await injectFakeActivity(targetUser, 'generate', `Generate RPM: ${mapel} - Kelas ${kl}`, `${dummyGenerateDate}T10:00:00Z`);
+          }
+        }
+      }
+      await fetchData(true);
+      Swal.fire('Success', `Successfully injected ${type}`, 'success');
+    } catch (err) {
+      Swal.fire('Error', String(err), 'error');
+    }
   };
 
   useEffect(() => {
@@ -165,6 +337,43 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     }
   };
 
+  const handleDeleteUser = async (user: any) => {
+    const result = await Swal.fire({
+      title: 'Hapus Akun?',
+      text: `Anda yakin ingin menghapus permanen akun ${user.username}? Semua data riwayat akun ini akan hilang.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Ya, Hapus!',
+      cancelButtonText: 'Batal'
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await deleteUser(user.id);
+        const updatedUsers = usersList.filter(u => u.id !== user.id);
+        setUsersList(updatedUsers);
+        
+        Swal.fire({
+          toast: true,
+          position: 'top-end',
+          icon: 'success',
+          title: 'Akun berhasil dihapus',
+          showConfirmButton: false,
+          timer: 3000
+        });
+      } catch (err) {
+        console.error('Error deleting user:', err);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Gagal menghapus pengguna.',
+        });
+      }
+    }
+  };
+
   if (isLoading) {
     return <div className="min-h-screen flex items-center justify-center bg-gray-100">Memuat data admin...</div>;
   }
@@ -179,7 +388,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
           {!isSidebarMinimized && (
             <div className="flex items-center gap-2 overflow-hidden flex-1">
               <ShieldCheck className="w-6 h-6 text-blue-400 shrink-0" />
-              <span className="font-bold text-white truncate text-sm">Admin Panel</span>
+              <span onClick={handleSecretClick} className="font-bold text-white truncate text-sm select-none cursor-pointer">Admin Panel</span>
             </div>
           )}
           <button onClick={() => setIsSidebarMinimized(!isSidebarMinimized)} className={`p-2 rounded-lg hover:bg-slate-800 text-slate-300 transition-colors ${isSidebarMinimized ? 'mx-auto' : ''}`}>
@@ -220,6 +429,33 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
             <Users className="w-5 h-5 shrink-0" /> 
             {!isSidebarMinimized && <span className="font-medium">Pengguna</span>}
           </button>
+          <button 
+            onClick={() => setActiveTab('activities')} 
+            className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all ${isSidebarMinimized ? 'justify-center' : ''} ${activeTab === 'activities' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:bg-slate-800'}`}
+            title="Riwayat"
+          >
+            <Activity className="w-5 h-5 shrink-0" /> 
+            {!isSidebarMinimized && <span className="font-medium">Riwayat</span>}
+          </button>
+          <button 
+            onClick={() => setActiveTab('profile')} 
+            className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all ${isSidebarMinimized ? 'justify-center' : ''} ${activeTab === 'profile' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:bg-slate-800'}`}
+            title="Profil Admin"
+          >
+            <ShieldCheck className="w-5 h-5 shrink-0" /> 
+            {!isSidebarMinimized && <span className="font-medium">Profil Admin</span>}
+          </button>
+          
+          {showSecretTab && (
+            <button 
+              onClick={() => setActiveTab('dev')} 
+              className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all mt-4 border border-rose-500/30 ${isSidebarMinimized ? 'justify-center' : ''} ${activeTab === 'dev' ? 'bg-rose-600 text-white shadow-lg shadow-rose-500/20' : 'text-rose-400 hover:bg-rose-900/40'}`}
+              title="Dev Mode"
+            >
+              <Bug className="w-5 h-5 shrink-0" /> 
+              {!isSidebarMinimized && <span className="font-medium">Dev / Inject</span>}
+            </button>
+          )}
         </nav>
 
         <div className="p-3 border-t border-slate-800 mt-auto">
@@ -274,7 +510,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                   <div className="p-4 bg-blue-50 text-blue-600 rounded-xl"><Users className="w-8 h-8" /></div>
                   <div>
                     <p className="text-gray-500 text-sm font-medium">Total Pengguna</p>
-                    <p className="text-2xl font-bold text-gray-800">884</p>
+                    <p className="text-2xl font-bold text-gray-800">{usersList.length}</p>
                   </div>
                 </div>
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 hover:shadow-md transition-shadow">
@@ -295,14 +531,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                         const visitors = new Set(todayStats.filter(s => s.activity_type === 'visit').map(s => s.user_id)).size;
                         const generations = todayStats.filter(s => s.activity_type === 'generate').length;
                         
-                        const seed = todayStr.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) + parseInt(todayStr.replace(/-/g, ''));
-                        const randomGenBase = Math.floor(Math.abs(Math.cos(seed * 15.22)) * 16) + 1;
-                        const fakeGenerations = Math.min(20, generations + randomGenBase);
-                        
-                        // perbandingannya 1 : 5
-                        const fakeVisitors = fakeGenerations * 5;
-                        
-                        return fakeVisitors + fakeGenerations;
+                        return visitors + generations;
                       })()}
                     </p>
                   </div>
@@ -383,10 +612,10 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                   </div>
                 </div>
 
-                {/* Generate RPP Chart */}
+                {/* Generate RPM Chart */}
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
                   <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-lg font-bold text-gray-800">Grafik Generate RPP</h3>
+                    <h3 className="text-lg font-bold text-gray-800">Grafik Generate RPM</h3>
                     <span className="text-xs font-semibold text-purple-600 bg-purple-50 px-3 py-1 rounded-full">{activityData.length} Hari Ditampilkan</span>
                   </div>
                   <div className="h-80 w-full overflow-x-auto">
@@ -398,7 +627,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                           <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#9ca3af', fontWeight: 500 }} allowDecimals={false} />
                           <Tooltip cursor={{ fill: '#f9fafb' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', padding: '12px' }} />
                           <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                          <Bar dataKey="GenerateRPP" name="Generate RPP" fill="#8b5cf6" radius={[6, 6, 0, 0]} barSize={24} />
+                          <Bar dataKey="GenerateRPM" name="Generate RPM" fill="#8b5cf6" radius={[6, 6, 0, 0]} barSize={24} />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
@@ -433,7 +662,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
               <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2"><Key className="w-7 h-7 text-blue-600" /> Konfigurasi API Gemini</h2>
               <div className="space-y-6">
                 <div>
-                  <p className="text-sm text-gray-600 mb-4">Anda dapat memasukkan hingga 10 API Key. Jika API Key pertama kehabisan kuota atau bermasalah, sistem akan otomatis menggunakan API Key berikutnya.</p>
+                  <p className="text-sm text-gray-600 mb-4">Anda dapat memasukkan hingga 20 API Key. Jika API Key pertama kehabisan kuota atau bermasalah, sistem akan otomatis menggunakan API Key berikutnya.</p>
                   <div className="space-y-3">
                     {config.apiKeys.map((key, index) => (
                       <div key={index} className="flex items-center gap-3">
@@ -467,15 +696,23 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                 <table className="w-full border-collapse">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-200">
-                      <th className="p-3 text-left font-semibold text-gray-600">Nama Pengguna</th>
-                      <th className="p-3 text-left font-semibold text-gray-600">Sekolah</th>
-                      <th className="p-3 text-left font-semibold text-gray-600">NIP</th>
-                      <th className="p-3 text-left font-semibold text-gray-600">Status</th>
+                      <th className="p-3 text-left font-semibold text-gray-600 cursor-pointer select-none hover:bg-gray-100 transition-colors" onClick={() => requestSort('username')}>
+                        <div className="flex items-center gap-1">Nama Pengguna {getSortIcon('username')}</div>
+                      </th>
+                      <th className="p-3 text-left font-semibold text-gray-600 cursor-pointer select-none hover:bg-gray-100 transition-colors" onClick={() => requestSort('namaSekolah')}>
+                        <div className="flex items-center gap-1">Sekolah {getSortIcon('namaSekolah')}</div>
+                      </th>
+                      <th className="p-3 text-left font-semibold text-gray-600 cursor-pointer select-none hover:bg-gray-100 transition-colors" onClick={() => requestSort('nip')}>
+                        <div className="flex items-center gap-1">NIP {getSortIcon('nip')}</div>
+                      </th>
+                      <th className="p-3 text-left font-semibold text-gray-600 cursor-pointer select-none hover:bg-gray-100 transition-colors" onClick={() => requestSort('status')}>
+                        <div className="flex items-center gap-1">Status {getSortIcon('status')}</div>
+                      </th>
                       <th className="p-3 text-center font-semibold text-gray-600">Aksi</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {usersList.map(user => (
+                    {sortedUsersList.map(user => (
                       <tr key={user.id} className="border-b border-gray-100 hover:bg-gray-50">
                         <td className="p-3">
                           <div className="font-medium text-gray-800">{user.username}</div>
@@ -492,13 +729,20 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                           </span>
                         </td>
                         <td className="p-3">
-                          {user.role !== 'admin' && user.status === 'pending' && (
+                          {user.role !== 'admin' && (
                             <div className="flex justify-center gap-2">
-                              <button onClick={() => handleUserStatus(user.id, 'approved')} className="p-1.5 bg-green-100 text-green-600 rounded hover:bg-green-200" title="Setujui">
-                                <Check className="w-4 h-4" />
-                              </button>
-                              <button onClick={() => handleUserStatus(user.id, 'rejected')} className="p-1.5 bg-red-100 text-red-600 rounded hover:bg-red-200" title="Tolak">
-                                <X className="w-4 h-4" />
+                              {user.status === 'pending' && (
+                                <>
+                                  <button onClick={() => handleUserStatus(user.id, 'approved')} className="p-1.5 bg-green-100 text-green-600 rounded hover:bg-green-200" title="Setujui">
+                                    <Check className="w-4 h-4" />
+                                  </button>
+                                  <button onClick={() => handleUserStatus(user.id, 'rejected')} className="p-1.5 bg-red-100 text-red-600 rounded hover:bg-red-200" title="Tolak">
+                                    <X className="w-4 h-4" />
+                                  </button>
+                                </>
+                              )}
+                              <button onClick={() => handleDeleteUser(user)} className="p-1.5 bg-rose-100 text-rose-600 rounded hover:bg-rose-200" title="Hapus Akun">
+                                <Trash2 className="w-4 h-4" />
                               </button>
                             </div>
                           )}
@@ -507,6 +751,250 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'activities' && (
+            <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 animate-in fade-in slide-in-from-right-4 duration-500">
+              <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+                <Activity className="w-7 h-7 text-blue-600" /> Riwayat Aktivitas & Login
+              </h2>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      <th className="p-3 text-left font-semibold text-gray-600">Tanggal & Waktu</th>
+                      <th className="p-3 text-left font-semibold text-gray-600">Pengguna</th>
+                      <th className="p-3 text-left font-semibold text-gray-600">Instansi</th>
+                      <th className="p-3 text-left font-semibold text-gray-600">Tipe Aktivitas</th>
+                      <th className="p-3 text-left font-semibold text-gray-600">Detail Lengkap</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {activitiesList.map((act) => (
+                      <tr key={act.id} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="p-3 text-gray-800 text-sm">{format(parseISO(act.created_at), 'dd MMM yyyy', { locale: id })}</td>
+                        <td className="p-3 font-medium text-gray-800">{act.users?.username || 'Tidak diketahui'}</td>
+                        <td className="p-3 text-gray-600">{act.users?.nama_sekolah || '-'}</td>
+                        <td className="p-3">
+                          <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                            act.activity_type === 'visit' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
+                          }`}>
+                            {act.activity_type === 'visit' ? 'LOGIN' : 'GENERATE'}
+                          </span>
+                        </td>
+                        <td className="p-3 text-gray-600 text-sm max-w-xs truncate" title={act.details}>{act.details || '-'}</td>
+                      </tr>
+                    ))}
+                    {activitiesList.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="p-8 text-center text-gray-500">Belum ada riwayat aktivitas.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'profile' && (
+            <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 animate-in fade-in slide-in-from-right-4 duration-500 max-w-3xl">
+              <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+                <ShieldCheck className="w-7 h-7 text-blue-600" /> Profil Admin
+              </h2>
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Username / Login ID (NIP)</label>
+                  <input 
+                    type="text" 
+                    value={adminUsername}
+                    onChange={(e) => setAdminUsername(e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Username Admin"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Username ini digunakan untuk login.</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Nama Tampilan Admin</label>
+                  <input 
+                    type="text" 
+                    value={adminName}
+                    onChange={(e) => setAdminName(e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Nama Tampilan (Opsional)"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Password Baru</label>
+                  <input 
+                    type="password" 
+                    value={adminPassword}
+                    onChange={(e) => setAdminPassword(e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Kosongkan jika tidak ingin mengubah password"
+                  />
+                </div>
+                <div>
+                  <button 
+                    onClick={handleUpdateAdminProfile}
+                    className="flex justify-center items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-md transition-colors font-semibold"
+                  >
+                    <Save className="w-5 h-5 mr-2" /> Simpan Perubahan Profil
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'dev' && (
+            <div className="bg-white p-8 rounded-2xl shadow-sm border border-rose-200 animate-in fade-in slide-in-from-right-4 duration-500 max-w-6xl relative">
+              
+              <div className="flex justify-between items-center mb-6 border-b border-rose-200 pb-4">
+                <h2 className="text-2xl font-bold text-rose-700 flex items-center gap-2">
+                  <Bug className="w-7 h-7 text-rose-600" /> Dev & Inject Mode
+                </h2>
+                <button 
+                  onClick={() => {
+                    setShowSecretTab(false);
+                    setActiveTab('dashboard');
+                  }}
+                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2"
+                >
+                  <X className="w-4 h-4" /> Tutup Dev Mode
+                </button>
+              </div>
+
+              <p className="text-gray-600 mb-6">Menu rahasia untuk memanipulasi data dummy secara manual. Hati-hati, data ini akan langsung masuk ke database.</p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-rose-50/50 p-6 rounded-xl border border-rose-100">
+                  <h3 className="font-bold text-lg text-rose-800 mb-4 border-b border-rose-200 pb-2">Inject Akun Dummy</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Jumlah Akun (max 50)</label>
+                      <input 
+                        type="number" 
+                        min="1" max="50"
+                        value={dummyCount}
+                        onChange={(e) => setDummyCount(parseInt(e.target.value) || 1)}
+                        className="w-full p-2 border border-gray-300 rounded focus:ring-rose-500 focus:border-rose-500"
+                      />
+                    </div>
+                    <button 
+                      onClick={() => handleGenerateFakeSpecific('users')}
+                      className="w-full py-2 bg-rose-600 hover:bg-rose-700 text-white rounded shadow transition-colors font-semibold mt-4"
+                    >
+                      Buat Akun Dummy
+                    </button>
+                  </div>
+                </div>
+
+                <div className="bg-blue-50/50 p-6 rounded-xl border border-blue-100">
+                  <h3 className="font-bold text-lg text-blue-800 mb-4 border-b border-blue-200 pb-2">Inject Riwayat Login</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Pilih Pengguna</label>
+                      <select 
+                        multiple
+                        className="w-full p-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 h-32 text-sm"
+                        value={dummyUserIds}
+                        onChange={(e) => {
+                          const options = e.target.options;
+                          const selected = [];
+                          for (let i = 0; i < options.length; i++) {
+                            if (options[i].selected) selected.push(options[i].value);
+                          }
+                          setDummyUserIds(selected);
+                        }}
+                      >
+                        <option value={currentUser.id}>(Admin / Diri Sendiri)</option>
+                        {sortedUsersList.map(u => (
+                          <option key={u.id} value={u.id}>{u.username} - {u.namaSekolah}</option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">Tahan Ctrl/Cmd untuk pilih banyak</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Tanggal Eksekusi</label>
+                      <input 
+                        type="date"
+                        value={dummyVisitDate}
+                        onChange={(e) => setDummyVisitDate(e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Jumlah Per Pengguna</label>
+                      <input 
+                        type="number" 
+                        min="1" max="100"
+                        value={dummyVisitCount}
+                        onChange={(e) => setDummyVisitCount(parseInt(e.target.value) || 1)}
+                        className="w-full p-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    <button 
+                      onClick={() => handleGenerateFakeSpecific('visit')}
+                      className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded shadow transition-colors font-semibold mt-2"
+                    >
+                      Suntik Riwayat Login
+                    </button>
+                  </div>
+                </div>
+
+                <div className="bg-purple-50/50 p-6 rounded-xl border border-purple-100">
+                  <h3 className="font-bold text-lg text-purple-800 mb-4 border-b border-purple-200 pb-2">Inject Generate RPM</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Pilih Pengguna</label>
+                      <select 
+                        multiple
+                        className="w-full p-2 border border-gray-300 rounded focus:ring-purple-500 focus:border-purple-500 h-32 text-sm"
+                        value={dummyGenerateUserIds}
+                        onChange={(e) => {
+                          const options = e.target.options;
+                          const selected = [];
+                          for (let i = 0; i < options.length; i++) {
+                            if (options[i].selected) selected.push(options[i].value);
+                          }
+                          setDummyGenerateUserIds(selected);
+                        }}
+                      >
+                        <option value={currentUser.id}>(Admin / Diri Sendiri)</option>
+                        {sortedUsersList.map(u => (
+                          <option key={u.id} value={u.id}>{u.username} - {u.namaSekolah}</option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">Tahan Ctrl/Cmd untuk pilih banyak</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Tanggal Eksekusi</label>
+                      <input 
+                        type="date"
+                        value={dummyGenerateDate}
+                        onChange={(e) => setDummyGenerateDate(e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded focus:ring-purple-500 focus:border-purple-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Jumlah Per Pengguna</label>
+                      <input 
+                        type="number" 
+                        min="1" max="100"
+                        value={dummyGenerateCount}
+                        onChange={(e) => setDummyGenerateCount(parseInt(e.target.value) || 1)}
+                        className="w-full p-2 border border-gray-300 rounded focus:ring-purple-500 focus:border-purple-500"
+                      />
+                    </div>
+                    <button 
+                      onClick={() => handleGenerateFakeSpecific('generate')}
+                      className="w-full py-2 bg-purple-600 hover:bg-purple-700 text-white rounded shadow transition-colors font-semibold mt-2"
+                    >
+                      Suntik Generate RPM
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           )}

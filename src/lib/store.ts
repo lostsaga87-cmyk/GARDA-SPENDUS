@@ -8,6 +8,7 @@ export interface User {
   noHp?: string;
   nip?: string;
   namaKepsek?: string;
+  nipKepsek?: string;
   mapel?: string[];
   role: 'admin' | 'user';
   status: 'approved' | 'pending' | 'rejected';
@@ -30,7 +31,7 @@ export interface AppConfig {
 export const DEFAULT_CONFIG: AppConfig = {
   appName: "GARDA SPENDUS",
   appLogo: "https://lh3.googleusercontent.com/d/1ltGZoLoeamrE79q-Uzwx3KUg6A987qo2",
-  apiKeys: Array(10).fill(""),
+  apiKeys: Array(20).fill(""),
 };
 
 // Fungsi ini dipertahankan untuk kompatibilitas jika ada yang memanggilnya,
@@ -44,12 +45,12 @@ export async function getAppConfig(): Promise<AppConfig | null> {
     return null;
   }
   
-  let parsedApiKeys: string[] = Array(10).fill("");
+  let parsedApiKeys: string[] = Array(20).fill("");
   if (data.api_key) {
     try {
       const parsed = JSON.parse(data.api_key);
       if (Array.isArray(parsed)) {
-        parsedApiKeys = [...parsed, ...Array(10)].slice(0, 10);
+        parsedApiKeys = [...parsed, ...Array(20).fill("")].slice(0, 20);
       } else {
         parsedApiKeys[0] = data.api_key;
       }
@@ -103,6 +104,7 @@ export async function loginUser(nip: string, password: string): Promise<User | n
     noHp: data.no_hp,
     nip: data.nip,
     namaKepsek: data.nama_kepsek,
+    nipKepsek: data.nip_kepsek,
     mapel: parsedMapel,
     profile_picture: data.profile_picture,
     kop_instansi: data.kop_instansi,
@@ -123,6 +125,7 @@ export async function registerUser(userData: any) {
     no_hp: userData.noHp,
     nip: userData.nip,
     nama_kepsek: userData.namaKepsek,
+    nip_kepsek: userData.nipKepsek,
     mapel: userData.mapel,
     role: 'user',
     status: 'pending'
@@ -149,6 +152,7 @@ export async function getUsers(): Promise<User[]> {
       noHp: d.no_hp,
       nip: d.nip,
       namaKepsek: d.nama_kepsek,
+      nipKepsek: d.nip_kepsek,
       mapel: parsedMapel,
       profile_picture: d.profile_picture,
       kop_instansi: d.kop_instansi,
@@ -167,6 +171,11 @@ export async function updateUserStatus(id: string, status: string) {
   if (error) throw error;
 }
 
+export async function deleteUser(id: string) {
+  const { error } = await supabase.from('users').delete().eq('id', id);
+  if (error) throw error;
+}
+
 export async function updatePassword(userId: string, newPassword: string) {
   const { error } = await supabase.from('users').update({ password: newPassword }).eq('id', userId);
   if (error) throw error;
@@ -178,6 +187,7 @@ export async function updateUserProfile(userId: string, updates: Partial<User>) 
   if (updates.nip !== undefined) dbUpdates.nip = updates.nip;
   if (updates.namaSekolah !== undefined) dbUpdates.nama_sekolah = updates.namaSekolah;
   if (updates.namaKepsek !== undefined) dbUpdates.nama_kepsek = updates.namaKepsek;
+  if (updates.nipKepsek !== undefined) dbUpdates.nip_kepsek = updates.nipKepsek;
   if (updates.noHp !== undefined) dbUpdates.no_hp = updates.noHp;
   if (updates.mapel !== undefined) dbUpdates.mapel = updates.mapel;
   if (updates.profile_picture !== undefined) dbUpdates.profile_picture = updates.profile_picture;
@@ -202,6 +212,30 @@ export async function logActivity(userId: string, activityType: 'visit' | 'gener
   if (error) console.error('Error logging activity:', error);
 }
 
+// SECRET ADMIN FUNCTIONS
+export async function createDummyUser(username: string, nip: string, namaSekolah: string = 'Sekolah Dummy', role: 'admin' | 'user' = 'user') {
+  const { data, error } = await supabase.from('users').insert({
+    username,
+    nip,
+    password: nip,
+    role,
+    status: 'approved',
+    nama_sekolah: namaSekolah,
+  }).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function injectFakeActivity(userId: string, activityType: 'visit' | 'generate', details: string, dateString: string) {
+  const { error } = await supabase.from('user_activities').insert({
+    user_id: userId,
+    activity_type: activityType,
+    details,
+    created_at: dateString
+  });
+  if (error) throw error;
+}
+
 export async function getUserHistory(userId: string) {
   const { data, error } = await supabase
     .from('user_activities')
@@ -211,6 +245,27 @@ export async function getUserHistory(userId: string) {
     .limit(20);
   if (error) {
     console.error('Error fetching history:', error);
+    return [];
+  }
+  return data;
+}
+
+export async function getActivities() {
+  const { data, error } = await supabase
+    .from('user_activities')
+    .select(`
+      id,
+      user_id,
+      activity_type,
+      details,
+      created_at,
+      users ( username, nama_sekolah )
+    `)
+    .order('created_at', { ascending: false })
+    .limit(500);
+
+  if (error) {
+    console.error('Error fetching activities:', error);
     return [];
   }
   return data;

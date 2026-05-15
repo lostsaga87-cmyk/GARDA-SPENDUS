@@ -56,7 +56,7 @@ export default function OutputSection({ rppData, setRppData, apiKeys, onBack, us
       const meetingsToGenerate = Math.min(rppData.jumlahPertemuan, rppData.tujuanPembelajaran.length);
 
       if (rppData.jumlahPertemuan > rppData.tujuanPembelajaran.length) {
-        finalHtml += `<div class="p-4 mb-4 text-sm text-yellow-800 rounded-lg bg-yellow-50" role="alert"><span class="font-medium">Peringatan!</span> Jumlah pertemuan (${rppData.jumlahPertemuan}) lebih banyak dari jumlah materi pokok yang ditemukan (${rppData.tujuanPembelajaran.length}). Hanya ${meetingsToGenerate} RPP yang akan dibuat.</div>`;
+        finalHtml += `<div class="p-4 mb-4 text-sm text-yellow-800 rounded-lg bg-yellow-50" role="alert"><span class="font-medium">Peringatan!</span> Jumlah pertemuan (${rppData.jumlahPertemuan}) lebih banyak dari jumlah materi pokok yang ditemukan (${rppData.tujuanPembelajaran.length}). Hanya ${meetingsToGenerate} RPM yang akan dibuat.</div>`;
       }
 
       // Identifikasi Materi uses generic rppData, so only needs to be generated once
@@ -64,19 +64,22 @@ export default function OutputSection({ rppData, setRppData, apiKeys, onBack, us
 
       for (let i = 0; i < meetingsToGenerate; i++) {
         const currentTopicData = rppData.tujuanPembelajaran[i];
+        
+        const currentDurasi = Array.isArray(rppData.durasiPertemuan) ? (rppData.durasiPertemuan[i] || rppData.durasiPertemuan[0] || "") : rppData.durasiPertemuan;
+        const meetingRppData = { ...rppData, durasiPertemuan: currentDurasi as any } as RppData;
 
         // Process these 2 at a time or sequentially to avoid hitting Gemini rate limits too fast
-        const desainPembelajaranHtml = await createDesainPembelajaran(rppData, currentTopicData, apiKeys);
-        const langkahPembelajaranHtml = await createLangkahPembelajaran(rppData, currentTopicData, apiKeys);
+        const desainPembelajaranHtml = await createDesainPembelajaran(meetingRppData, currentTopicData, apiKeys);
+        const langkahPembelajaranHtml = await createLangkahPembelajaran(meetingRppData, currentTopicData, apiKeys);
         
         const [
           asesmenAwalHtml,
           asesmenProsesHtml,
           asesmenAkhirResult
         ] = await Promise.all([
-          createAsesmenAwal(rppData, currentTopicData, apiKeys),
-          createAsesmenProses(rppData, currentTopicData, apiKeys),
-          createAsesmenAkhirAndLKPD(rppData, currentTopicData, apiKeys, langkahPembelajaranHtml)
+          createAsesmenAwal(meetingRppData, currentTopicData, apiKeys),
+          createAsesmenProses(meetingRppData, currentTopicData, apiKeys),
+          createAsesmenAkhirAndLKPD(meetingRppData, currentTopicData, apiKeys, langkahPembelajaranHtml)
         ]);
         
         let asesmenAkhirHtml = "";
@@ -92,17 +95,17 @@ export default function OutputSection({ rppData, setRppData, apiKeys, onBack, us
         finalHtml += `
           <div class="rpp-section mb-12" style="margin-bottom: 3rem; ${i > 0 ? 'page-break-before: always; break-before: page;' : ''}">
             <h2 style="text-align: center; font-weight: bold; font-size: 14pt; margin-bottom: 1.5rem;">RENCANA PEMBELAJARAN MENDALAM (RPM)</h2>
-            ${createHeaderTable(rppData)}
+            ${createHeaderTable(meetingRppData)}
             
             <h3 style="font-weight: bold; font-size: 12pt; margin-top: 1.5rem; margin-bottom: 0.5rem; border-bottom: 1px solid #000; padding-bottom: 0.25rem;">Identifikasi</h3>
-            ${createIdentifikasiPesertaDidik(rppData)}
+            ${createIdentifikasiPesertaDidik(meetingRppData)}
             ${identifikasiMateriHtml}
-            ${createDimensiProfilLulusan(rppData)}
-            ${createCapaianPembelajaran(rppData)}
+            ${createDimensiProfilLulusan(meetingRppData)}
+            ${createCapaianPembelajaran(meetingRppData)}
 
             <h3 style="font-weight: bold; font-size: 12pt; margin-top: 1.5rem; margin-bottom: 0.5rem; border-bottom: 1px solid #000; padding-bottom: 0.25rem;">Desain Pembelajaran</h3>
             ${desainPembelajaranHtml}
-            ${createSumberBelajarHtml(rppData, currentTopicData)}
+            ${createSumberBelajarHtml(meetingRppData, currentTopicData)}
 
             <h3 style="font-weight: bold; font-size: 12pt; margin-top: 1.5rem; margin-bottom: 0.5rem; border-bottom: 1px solid #000; padding-bottom: 0.25rem;">Langkah-Langkah Pembelajaran</h3>
             ${langkahPembelajaranHtml}
@@ -112,7 +115,7 @@ export default function OutputSection({ rppData, setRppData, apiKeys, onBack, us
             ${asesmenProsesHtml}
             ${asesmenAkhirHtml}
 
-            ${createTandaTangan(rppData)}
+            ${createTandaTangan(meetingRppData)}
             ${lkpdHtml}
           </div>
           ${i < meetingsToGenerate - 1 ? '<div style="page-break-after: always; break-after: page;"></div><br clear="all" style="mso-break-type: section-break" />' : ''}`;
@@ -486,10 +489,10 @@ export default function OutputSection({ rppData, setRppData, apiKeys, onBack, us
                   <button onClick={handleEditToggle} className={`flex items-center px-4 py-2 rounded-lg font-semibold text-white transition-colors ${isEditing ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-amber-500 hover:bg-amber-600'}`}>
                     {isEditing ? <><Save className="w-4 h-4 mr-2" /> Simpan Edit</> : <><Edit className="w-4 h-4 mr-2" /> Edit Dokumen</>}
                   </button>
-                  <button onClick={() => handlePrint('rpp-content-to-export', 'RPP')} disabled={isEditing} className="flex items-center px-4 py-2 rounded-lg font-semibold text-white bg-green-600 hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                  <button onClick={() => handlePrint('rpp-content-to-export', 'RPM')} disabled={isEditing} className="flex items-center px-4 py-2 rounded-lg font-semibold text-white bg-green-600 hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                     <Printer className="w-4 h-4 mr-2" /> Download PDF
                   </button>
-                  <button onClick={() => handleDownloadWord('rpp-content-to-export', 'RPP_Garda_Spendus')} disabled={isEditing} className="flex items-center px-4 py-2 rounded-lg font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                  <button onClick={() => handleDownloadWord('rpp-content-to-export', 'RPM_Garda_Spendus')} disabled={isEditing} className="flex items-center px-4 py-2 rounded-lg font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                     <Download className="w-4 h-4 mr-2" /> Download Word
                   </button>
                 </div>
@@ -523,6 +526,7 @@ function createHeaderTable(data: RppData) {
         <tr><td style="font-weight: bold; padding: 8px; border: 1px solid #000; background-color: #f9fafb;">KELAS / SEMESTER</td><td style="padding: 8px; border: 1px solid #000;">: ${data.kelasSemester.toUpperCase()}</td></tr>
         <tr><td style="font-weight: bold; padding: 8px; border: 1px solid #000; background-color: #f9fafb;">MATA PELAJARAN</td><td style="padding: 8px; border: 1px solid #000;">: ${data.mapel.toUpperCase()}</td></tr>
         <tr><td style="font-weight: bold; padding: 8px; border: 1px solid #000; background-color: #f9fafb;">ALOKASI WAKTU</td><td style="padding: 8px; border: 1px solid #000;">: ${data.durasiPertemuan}</td></tr>
+        <tr><td style="font-weight: bold; padding: 8px; border: 1px solid #000; background-color: #f9fafb;">JUMLAH PERTEMUAN</td><td style="padding: 8px; border: 1px solid #000;">: ${data.alokasiWaktu}</td></tr>
       </tbody>
     </table>`;
 }
@@ -541,7 +545,7 @@ function createIdentifikasiPesertaDidik(data: RppData) {
 }
 
 async function createIdentifikasiMateri(data: RppData, apiKeys: string[]) {
-  const prompt = `Anda adalah seorang ahli kurikulum. Berdasarkan Capaian Pembelajaran berikut: '${data.cp_full_text}' untuk mata pelajaran '${data.mapel}' kelas '${data.kelasSemester}'. Pertimbangkan juga Karakteristik siswa: ${data.karakteristik}, Minat: ${data.minat}, Motivasi: ${data.motivasi}, Prestasi: ${data.prestasi}, Lingkungan: ${data.lingkungan}. Buatlah analisis materi pelajaran yang mendalam dalam format JSON. JSON harus memiliki kunci berikut: 'jenis_pengetahuan' (dengan sub-kunci 'konseptual', 'procedural', 'metakognitif'), 'relevansi_kehidupan_nyata', 'tingkat_kesulitan' (jelaskan alasannya), 'struktur_materi', dan 'integrasi_nilai_karakter' (sebutkan 5 nilai karakter dan jelaskan integrasinya).`;
+  const prompt = `Anda adalah seorang ahli kurikulum. Berdasarkan Capaian Pembelajaran berikut: '${data.cp_full_text}' untuk mata pelajaran '${data.mapel}' kelas '${data.kelasSemester}'. Pertimbangkan juga Karakteristik siswa: ${data.karakteristik}, Minat: ${data.minat}, Motivasi: ${data.motivasi}, Prestasi: ${data.prestasi}, Lingkungan: ${data.lingkungan}. Buatlah analisis materi pelajaran yang mendalam dalam format JSON. JSON harus memiliki kunci berikut: 'jenis_pengetahuan' (dengan sub-kunci 'konseptual', 'procedural', 'metakognitif'), 'relevansi_kehidupan_nyata', 'tingkat_kesulitan' (jelaskan alasannya), 'struktur_materi', dan 'integrasi_nilai_karakter' (berikan list 5 nilai karakter dan jelaskan integrasinya).`;
   const schema = {
     type: "OBJECT",
     properties: {
@@ -549,11 +553,26 @@ async function createIdentifikasiMateri(data: RppData, apiKeys: string[]) {
       relevansi_kehidupan_nyata: { type: "STRING" },
       tingkat_kesulitan: { type: "STRING" },
       struktur_materi: { type: "STRING" },
-      integrasi_nilai_karakter: { type: "STRING" }
+      integrasi_nilai_karakter: { 
+        type: "ARRAY", 
+        items: { 
+          type: "OBJECT", 
+          properties: { 
+            nilai: { type: "STRING" }, 
+            penjelasan: { type: "STRING" } 
+          }, 
+          required: ["nilai", "penjelasan"] 
+        } 
+      }
     },
     required: ["jenis_pengetahuan", "relevansi_kehidupan_nyata", "tingkat_kesulitan", "struktur_materi", "integrasi_nilai_karakter"]
   };
   const result = await makeApiCall(prompt, apiKeys, schema);
+
+  const renderIntegrasi = (Array.isArray(result?.integrasi_nilai_karakter) ? result.integrasi_nilai_karakter : [])
+    .map((item: any) => `<div style="margin-top: 0.5rem; margin-bottom: 0.5rem;"><strong>${item.nilai}</strong>: ${item.penjelasan}</div>`)
+    .join('');
+
   return `
     <h4 style="font-weight: bold; font-size: 11pt; margin-top: 1rem; margin-bottom: 0.5rem;">Materi Pelajaran:</h4>
     <ol style="margin-left: 1.5rem; margin-bottom: 1rem; list-style-type: decimal;">
@@ -567,7 +586,7 @@ async function createIdentifikasiMateri(data: RppData, apiKeys: string[]) {
       <li><strong style="font-weight:bold;">Relevansi dengan Kehidupan Nyata Peserta Didik:</strong><p style="margin-top: 0.25rem; margin-bottom: 0.25rem;">${result?.relevansi_kehidupan_nyata || ''}</p></li>
       <li><strong style="font-weight:bold;">Tingkat Kesulitan:</strong><p style="margin-top: 0.25rem; margin-bottom: 0.25rem;">${result?.tingkat_kesulitan || ''}</p></li>
       <li><strong style="font-weight:bold;">Struktur Materi:</strong><p style="margin-top: 0.25rem; margin-bottom: 0.25rem;">${result?.struktur_materi || ''}</p></li>
-      <li><strong style="font-weight:bold;">Integrasi Nilai dan Karakter:</strong><p style="margin-top: 0.25rem; margin-bottom: 0.25rem;">${result?.integrasi_nilai_karakter || ''}</p></li>
+      <li><strong style="font-weight:bold;">Integrasi Nilai dan Karakter:</strong><div style="margin-top: 0.25rem; margin-bottom: 0.25rem;">${renderIntegrasi}</div></li>
     </ol>`;
 }
 
@@ -598,24 +617,38 @@ function createCapaianPembelajaran(data: RppData) {
 }
 
 async function createDesainPembelajaran(data: RppData, topicData: any, apiKeys: string[]) {
-  const prompt = `Anda adalah seorang desainer pembelajaran. Untuk materi pokok: "${topicData.topic}", buatlah detail desain pembelajaran dalam format JSON. JSON harus memiliki kunci: 'lintas_disiplin' (array string nama mapel), 'topik_pembelajaran' (array string topik spesifik turunan dari materi pokok), dan 'praktik_pedagogis' (jelaskan 3 praktik yang sesuai). Gunakan juga data karakteristik siswa (${data.karakteristik}, minat ${data.minat}, motivasi ${data.motivasi}, prestasi ${data.prestasi}) dan lingkungan belajar (Fisik='${data.lingkunganFisik}', Virtual='${data.lingkunganVirtual}', Budaya='${data.budayaBelajar}') untuk merancang praktik pedagogis yang inklusif dan efektif bagi mereka.`;
+  const prompt = `Anda adalah seorang desainer pembelajaran. Untuk materi pokok: "${topicData.topic}", buatlah detail desain pembelajaran dalam format JSON. JSON harus memiliki kunci: 'lintas_disiplin' (array string nama mapel), 'topik_pembelajaran' (array string topik spesifik turunan dari materi pokok), dan 'praktik_pedagogis' (berikan list 3 praktik yang sesuai). Gunakan juga data karakteristik siswa (${data.karakteristik}, minat ${data.minat}, motivasi ${data.motivasi}, prestasi ${data.prestasi}) dan lingkungan belajar (Fisik='${data.lingkunganFisik}', Virtual='${data.lingkunganVirtual}', Budaya='${data.budayaBelajar}') untuk merancang praktik pedagogis yang inklusif dan efektif bagi mereka.`;
   const schema = {
     type: "OBJECT",
     properties: {
       lintas_disiplin: { type: "ARRAY", items: { type: "STRING" } },
       topik_pembelajaran: { type: "ARRAY", items: { type: "STRING" } },
-      praktik_pedagogis: { type: "STRING" }
+      praktik_pedagogis: { 
+        type: "ARRAY", 
+        items: { 
+          type: "OBJECT", 
+          properties: { 
+            nama_praktik: { type: "STRING" }, 
+            penjelasan: { type: "STRING" } 
+          }, 
+          required: ["nama_praktik", "penjelasan"] 
+        } 
+      }
     },
     required: ["lintas_disiplin", "topik_pembelajaran", "praktik_pedagogis"]
   };
   const result = await makeApiCall(prompt, apiKeys, schema);
   const tpsForThisMeeting = `<h5 style="font-weight: bold; font-size: 11pt; margin-top: 0.75rem; margin-bottom: 0.25rem;">Tujuan Pembelajaran Pertemuan Ini:</h5><ul style="margin-left: 1.5rem; margin-bottom: 0.75rem; list-style-type: disc;">${topicData.tps.map((tp:any) => `<li>${tp.text}</li>`).join('')}</ul>`;
 
+  const renderPraktik = (Array.isArray(result?.praktik_pedagogis) ? result.praktik_pedagogis : [])
+    .map((item: any, idx: number) => `<div style="margin-bottom: 0.5rem;">${idx + 1}. <strong>${item.nama_praktik}</strong>: ${item.penjelasan}</div>`)
+    .join('');
+
   return `
     <h4 style="font-weight: bold; font-size: 11pt; margin-top: 1rem; margin-bottom: 0.5rem;">Lintas Disiplin Ilmu:</h4><ul style="margin-left: 1.5rem; margin-bottom: 0.75rem; list-style-type: disc;">${(result?.lintas_disiplin || []).map((item:string) => `<li>${item}</li>`).join('')}</ul>
     ${tpsForThisMeeting}
     <h4 style="font-weight: bold; font-size: 11pt; margin-top: 1rem; margin-bottom: 0.5rem;">Topik Pembelajaran:</h4><ul style="margin-left: 1.5rem; margin-bottom: 0.75rem; list-style-type: disc;">${(result?.topik_pembelajaran || []).map((item:string) => `<li>${item}</li>`).join('')}</ul>
-    <h4 style="font-weight: bold; font-size: 11pt; margin-top: 1rem; margin-bottom: 0.5rem;">Praktik Pedagogis:</h4><p style="margin-bottom: 0.75rem;">${result?.praktik_pedagogis || ''}</p>
+    <h4 style="font-weight: bold; font-size: 11pt; margin-top: 1rem; margin-bottom: 0.5rem;">Praktik Pedagogis:</h4><div style="margin-bottom: 0.75rem;">${renderPraktik}</div>
     <h4 style="font-weight: bold; font-size: 11pt; margin-top: 1rem; margin-bottom: 0.5rem;">Kemitraan Pembelajaran:</h4><p style="margin-bottom: 0.75rem;">${data.kemitraan}</p>
     <h4 style="font-weight: bold; font-size: 11pt; margin-top: 1rem; margin-bottom: 0.5rem;">Lingkungan Pembelajaran:</h4>
     <ul style="margin-left: 1.5rem; margin-bottom: 0.75rem; list-style-type: disc;">
@@ -643,20 +676,40 @@ function createSumberBelajarHtml(data: RppData, topicData: any) {
 
 async function createLangkahPembelajaran(data: RppData, topicData: any, apiKeys: string[]) {
   const tpsJoined = topicData.tps.map((t:any) => t.text).join(', ');
-  const prompt = `Anda adalah seorang guru inovatif. Rancang langkah-langkah pembelajaran dalam format tabel untuk sebuah pertemuan. Model Pembelajaran yang harus digunakan adalah: ${data.modelPembelajaran}. Bagian 'inti' dari pembelajaran HARUS secara eksplisit mengikuti sintaks/langkah-langkah dari model ${data.modelPembelajaran}. 
-Topik pertemuan ini adalah: '${topicData.topic}', dengan Tujuan Pembelajaran: '${tpsJoined}'. 
-PENTING: Durasi untuk pertemuan ini adalah tepat ${data.durasiPertemuan}. Anda HARUS menyesuaikan scope dan alokasi waktu dari setiap tahap (awal, inti, penutup) agar sangat realistis diselesaikan dalam estimasi durasi ${data.durasiPertemuan} tersebut. Tuliskan alokasi waktu dengan tag <strong> (contoh: <strong>15 menit</strong>) di setiap deskripsi.
-Kondisi Awal Siswa meliputi Karakteristik: ${data.karakteristik}, Minat: ${data.minat}, dan Lingkungan Sekolah: ${data.lingkungan}. 
-INSTRUKSI KHUSUS LINGKUNGAN: Jika "Lingkungan Sekolah" mendeskripsikan kondisi spesifik (lebih dari 1 kata, misal desa pesisir, dll), Anda HARUS memprioritaskan dan secara kreatif merancang aktivitas pembelajaran dan contoh kasus yang berbasis pada konteks lingkungan tersebut, tanpa mengabaikan identifikasi siswa lainnya. Deskripsi aktivitas harus secara langsung menyebutkan bagaimana lingkungan ini digunakan dalam materi/kegiatan kelas.
-Format jawaban dalam JSON dengan kunci: 'awal', 'inti', dan 'penutup'. Masing-masing kunci berisi array objek. Setiap objek mewakili satu baris tabel dan memiliki kunci 'tahap' (gunakan nama sintaks model untuk tahap inti), 'prinsip' (pilih dari 'Berkesadaran', 'Bermakna', 'Menggembirakan'), dan 'deskripsi'. Nilai 'deskripsi' HARUS berupa poin-poin menggunakan tag HTML <ul> dan <li> yang memuat urutan aktivitas guru dan siswa secara detail, BUKAN paragraf narasi atau deskripsi panjang.`;
+  const numMeetingsMatch = data.alokasiWaktu.match(/(\d+)/);
+  const numMeetings = numMeetingsMatch ? parseInt(numMeetingsMatch[1], 10) : 1;
+
+  const prompt = `Anda adalah seorang guru inovatif. Rancang langkah-langkah pembelajaran dalam format tabel untuk ${numMeetings} pertemuan. Model Pembelajaran yang harus digunakan adalah: ${data.modelPembelajaran}. Topik materi ini adalah: '${topicData.topic}' beserta Tujuan Pembelajaran: '${tpsJoined}'.
+
+PENTING UNTUK DISTRIBUSI WAKTU & SINTAKS:
+- Durasi per pertemuan adalah ${data.durasiPertemuan}. Total waktu untuk ${numMeetings} pertemuan harus dipecah/didistribusikan secara proporsional.
+- Kegiatan setiap pertemuan tetap MURNI memiliki bagian AWAL, INTI, PENUTUP (masing-masing pertemuan menghabiskan waktu ${data.durasiPertemuan}).
+- PADA BAGIAN INTI, Anda HARUS mendistribusikan sintaks (langkah-langkah) dari model ${data.modelPembelajaran} secara berurutan melintasi ${numMeetings} pertemuan tersebut. BUKAN mengulang seluruh sintaks pada setiap pertemuan. Misalnya, jika ada 2 pertemuan, pertemuan pertama menggunakan sintaks tahap awal, dan pertemuan kedua menggunakan sisa sintaks akhir model tersebut.
+- Tuliskan alokasi waktu dengan tag <strong> (contoh: <strong>15 menit</strong>) di setiap deskripsi agar realistis memenuhi durasi ${data.durasiPertemuan} di tiap pertemuannya.
+
+Kondisi Awal Siswa: Karakteristik (${data.karakteristik}), Minat (${data.minat}), Lingkungan Sekolah (${data.lingkungan}).
+INSTRUKSI KHUSUS LINGKUNGAN: Jika "Lingkungan Sekolah" mendeskripsikan kondisi spesifik (misal desa pesisir, dll), Anda HARUS memprioritaskan aktivitas pembelajaran yang berbasis pada konteks lingkungan tersebut.
+
+Format jawaban dalam JSON dengan kunci 'pertemuan_list' (array of objects). Tiap objek pertemuan memiliki kunci 'pertemuan_ke' (angka), dan kunci 'awal', 'inti', 'penutup'. Masing-masing ('awal', 'inti', 'penutup') berisi array objek yang mewakili satu baris tabel dan memiliki kunci 'tahap' (nama sintaks model untuk tahap inti), 'prinsip' (pilih 'Berkesadaran', 'Bermakna', 'Menggembirakan'), dan 'deskripsi' (berupa poin-poin menggunakan tag HTML <ul> dan <li> secara detail).`;
+
   const schema = {
     type: "OBJECT",
     properties: {
-      awal: { type: "ARRAY", items: { type: "OBJECT", properties: { tahap: { type: "STRING" }, prinsip: { type: "STRING" }, deskripsi: { type: "STRING" } }, required: ["tahap", "prinsip", "deskripsi"] } },
-      inti: { type: "ARRAY", items: { type: "OBJECT", properties: { tahap: { type: "STRING" }, prinsip: { type: "STRING" }, deskripsi: { type: "STRING" } }, required: ["tahap", "prinsip", "deskripsi"] } },
-      penutup: { type: "ARRAY", items: { type: "OBJECT", properties: { tahap: { type: "STRING" }, prinsip: { type: "STRING" }, deskripsi: { type: "STRING" } }, required: ["tahap", "prinsip", "deskripsi"] } }
+      pertemuan_list: {
+        type: "ARRAY",
+        items: {
+          type: "OBJECT",
+          properties: {
+            pertemuan_ke: { type: "INTEGER" },
+            awal: { type: "ARRAY", items: { type: "OBJECT", properties: { tahap: { type: "STRING" }, prinsip: { type: "STRING" }, deskripsi: { type: "STRING" } }, required: ["tahap", "prinsip", "deskripsi"] } },
+            inti: { type: "ARRAY", items: { type: "OBJECT", properties: { tahap: { type: "STRING" }, prinsip: { type: "STRING" }, deskripsi: { type: "STRING" } }, required: ["tahap", "prinsip", "deskripsi"] } },
+            penutup: { type: "ARRAY", items: { type: "OBJECT", properties: { tahap: { type: "STRING" }, prinsip: { type: "STRING" }, deskripsi: { type: "STRING" } }, required: ["tahap", "prinsip", "deskripsi"] } }
+          },
+          required: ["pertemuan_ke", "awal", "inti", "penutup"]
+        }
+      }
     },
-    required: ["awal", "inti", "penutup"]
+    required: ["pertemuan_list"]
   };
   const result = await makeApiCall(prompt, apiKeys, schema);
 
@@ -666,10 +719,22 @@ Format jawaban dalam JSON dengan kunci: 'awal', 'inti', dan 'penutup'. Masing-ma
     return `<h4 style="font-weight: bold; font-size: 11pt; margin-top: 1rem; margin-bottom: 0.5rem;">${title}</h4><table style="width: 100%; border-collapse: collapse; margin-bottom: 1rem;"><tbody>${tableRows}</tbody></table>`;
   };
 
-  return renderTableSection('AWAL', result.awal) + 
-         `<p style="margin-bottom: 0.5rem;">Pada tahap ini, siswa aktif terlibat dalam pengalaman belajar memahami, mengaplikasi, dan merefleksi. Guru menerapkan prinsip pembelajaran berkesadaran, bermakna, menyenangkan untuk mencapai tujuan pembelajaran dengan model ${data.modelPembelajaran}.</p>` +
-         renderTableSection('INTI (Pengalaman Belajar)', result.inti) + 
-         renderTableSection('PENUTUP', result.penutup);
+  let allHtml = '';
+  if (result.pertemuan_list && Array.isArray(result.pertemuan_list)) {
+      result.pertemuan_list.forEach((p: any) => {
+          allHtml += `<h3 style="font-weight: bold; font-size: 13pt; margin-top: 2rem; margin-bottom: 1rem; color: #1e40af; border-bottom: 2px solid #e5e7eb; padding-bottom: 0.5rem;">Pertemuan Ke-${p.pertemuan_ke} <span style="font-weight: normal; font-size: 11pt; color: #4b5563;">(Durasi: ${data.durasiPertemuan})</span></h3>`;
+          allHtml += renderTableSection('AWAL', p.awal);
+          allHtml += `<p style="margin-bottom: 0.5rem;">Pada tahap ini, siswa aktif terlibat dalam pengalaman belajar memahami, mengaplikasi, dan merefleksi. Sintaks didistribusikan sesuai progres pembelajaran untuk model ${data.modelPembelajaran}.</p>`;
+          allHtml += renderTableSection('INTI (Pengalaman Belajar)', p.inti);
+          allHtml += renderTableSection('PENUTUP', p.penutup);
+      });
+  } else {
+      // Fallback in case of incorrect schema return
+      allHtml += renderTableSection('AWAL', result.awal);
+      allHtml += renderTableSection('INTI (Pengalaman Belajar)', result.inti);
+      allHtml += renderTableSection('PENUTUP', result.penutup);
+  }
+  return allHtml;
 }
 
 async function createAsesmenAwal(data: RppData, topicData: any, apiKeys: string[]) {
@@ -917,11 +982,19 @@ async function createAsesmenAkhirAndLKPD(data: RppData, topicData: any, apiKeys:
 
 function createTandaTangan(data: RppData) {
   const parseNameAndNip = (s: string) => s.includes('/') ? { name: s.split('/')[0].trim(), nip: s.split('/')[1].trim() } : { name: s.trim(), nip: '' };
-  const guru = parseNameAndNip(data.namaGuru);
-  const kepsek = parseNameAndNip(data.namaKepsek);
+  
+  const guruParsed = parseNameAndNip(data.namaGuru);
+  const kepsekParsed = parseNameAndNip(data.namaKepsek);
+  
+  const guruName = guruParsed.name;
+  const guruNip = data.nipGuru || guruParsed.nip;
+  
+  const kepsekName = kepsekParsed.name;
+  const kepsekNip = data.nipKepsek || kepsekParsed.nip;
+
   const formattedDate = new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
-  const kepsekNipDisplay = kepsek.nip ? `NIP: ${kepsek.nip}` : 'NIP: .................................';
-  const guruNipDisplay = guru.nip ? `NIP: ${guru.nip}` : 'NIP: .................................';
+  const kepsekNipDisplay = kepsekNip ? `NIP: ${kepsekNip}` : 'NIP: .................................';
+  const guruNipDisplay = guruNip ? `NIP: ${guruNip}` : 'NIP: .................................';
   return `
     <table class="no-border" style="width: 100%; margin-top: 4rem; border: none; font-family: 'Times New Roman', Times, serif; font-size: 11pt; page-break-inside: avoid; break-inside: avoid;">
       <tr>
@@ -929,7 +1002,7 @@ function createTandaTangan(data: RppData) {
           <p style="margin: 0; text-align: left;">Mengetahui,</p>
           <p style="margin: 0; text-align: left;">Kepala Sekolah</p>
           <br><br><br><br>
-          <p style="margin: 0; font-weight: bold; text-decoration: underline; text-align: left;">${kepsek.name}</p>
+          <p style="margin: 0; font-weight: bold; text-decoration: underline; text-align: left;">${kepsekName}</p>
           <p style="margin: 0; text-align: left;">${kepsekNipDisplay}</p>
         </td>
         <td style="width: 50%; border: none !important; vertical-align: top;">
@@ -937,7 +1010,7 @@ function createTandaTangan(data: RppData) {
             <p style="margin: 0; text-align: center;">${data.kota}, ${formattedDate}</p>
             <p style="margin: 0; text-align: center;">Guru Mata Pelajaran</p>
             <br><br><br><br>
-            <p style="margin: 0; font-weight: bold; text-decoration: underline; text-align: center;">${guru.name}</p>
+            <p style="margin: 0; font-weight: bold; text-decoration: underline; text-align: center;">${guruName}</p>
             <p style="margin: 0; text-align: center;">${guruNipDisplay}</p>
           </div>
           <div style="clear: both;"></div>

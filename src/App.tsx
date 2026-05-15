@@ -143,7 +143,7 @@ export default function App() {
         <MainApp onLogout={handleLogout} appConfig={appConfig} currentUser={currentUser} />
       )}
       {currentScreen === 'admin' && currentUser?.role === 'admin' && (
-        <AdminDashboard onLogout={handleLogout} />
+        <AdminDashboard currentUser={currentUser} onLogout={handleLogout} />
       )}
     </>
   );

@@ -6,11 +6,13 @@ export interface RppData {
   kelasSemester: string;
   fase: string;
   jumlahPertemuan: number;
-  durasiPertemuan: string;
+  durasiPertemuan: string[];
   alokasiWaktu: string;
   lingkungan: string;
   namaGuru: string;
+  nipGuru: string;
   namaKepsek: string;
+  nipKepsek: string;
   kota: string;
   kktpTercapaiMin: number;
   karakteristik: string;

@@ -96,6 +96,7 @@ export default function MainApp({ onLogout, appConfig, currentUser }: { onLogout
     nip: currentUser.nip || '',
     namaSekolah: currentUser.namaSekolah || '',
     namaKepsek: currentUser.namaKepsek || '',
+    nipKepsek: currentUser.nipKepsek || '',
     noHp: currentUser.noHp || '',
     mapel: currentUser.mapel || [],
     profile_picture: currentUser.profile_picture || '',
@@ -194,8 +195,8 @@ export default function MainApp({ onLogout, appConfig, currentUser }: { onLogout
 
   const [rppData, setRppData] = useState<RppData>({
     namaSekolah: currentUser.namaSekolah || '', jenjang: 'SMP', mapel: currentUser.mapel?.join(', ') || '', tahunPelajaran: '2025/2026', kelasSemester: '', fase: '',
-    jumlahPertemuan: 1, durasiPertemuan: '1 JP x 40 Menit', alokasiWaktu: '',
-    lingkungan: '', namaGuru: currentUser.username || '', namaKepsek: currentUser.namaKepsek || '', kota: '',
+    jumlahPertemuan: 1, durasiPertemuan: ['1 JP x 40 Menit'], alokasiWaktu: '1 Pertemuan',
+    lingkungan: '', namaGuru: currentUser.username || '', nipGuru: currentUser.nip || '', namaKepsek: currentUser.namaKepsek || '', nipKepsek: currentUser.nipKepsek || '', kota: 'Pasuruan',
     kktpTercapaiMin: 80,
     karakteristik: 'Sebagian siswa cenderung pasif, 2 siswa berkebutuhan khusus, ada yang belum lancar membaca/berhitung.', 
     minat: 'Sebagian siswa minat belajar rendah, lebih suka praktik di laboratorium dan kerja kelompok.', 
@@ -216,19 +217,42 @@ export default function MainApp({ onLogout, appConfig, currentUser }: { onLogout
 
   const [validationError, setValidationError] = useState('');
   const [showValidationPopup, setShowValidationPopup] = useState(false);
+  const [showValidationMarks, setShowValidationMarks] = useState(false);
   const [showOutput, setShowOutput] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
 
   const captureAndValidateData = () => {
-    const requiredFields: (keyof RppData)[] = ['namaSekolah', 'jenjang', 'mapel', 'tahunPelajaran', 'kelasSemester', 'fase', 'durasiPertemuan', 'namaGuru', 'namaKepsek', 'kota', 'cp_full_text'];
+    setShowValidationMarks(true);
+    const requiredFields: (keyof RppData)[] = [
+      'namaSekolah', 'jenjang', 'mapel', 'tahunPelajaran', 'kelasSemester', 'fase', 
+      'jumlahPertemuan', 'durasiPertemuan', 'alokasiWaktu', 'namaGuru', 'nipGuru', 
+      'namaKepsek', 'nipKepsek', 'kota', 'kktpTercapaiMin', 'saranaPrasarana', 
+      'karakteristik', 'minat', 'motivasi', 'prestasi', 'lingkungan', 'kemitraan', 
+      'lingkunganFisik', 'lingkunganVirtual', 'budayaBelajar', 'digitalPerencanaan', 
+      'digitalPelaksanaan', 'digitalAsesmen', 'cp_full_text'
+    ];
     let isValid = true;
     let errorMessage = '';
     
+    // Check missing fields
     for (const field of requiredFields) {
-      if (!rppData[field]) {
+      if (!rppData[field] || (Array.isArray(rppData[field]) && (rppData[field] as any[]).length === 0)) {
         isValid = false;
-        errorMessage = 'Kolom wajib diisi. Harap lengkapi semua data identitas dan materi ajar.';
+        errorMessage = 'Masih ada kolom yang belum diisi. Harap perhatikan notifikasi merah pada form dan lengkapi semua data.';
         break;
+      }
+    }
+
+    // specific validation
+    if (isValid && rppData.durasiPertemuan) {
+      const match = rppData.alokasiWaktu.match(/(\d+)/);
+      const numOfMeetings = match ? parseInt(match[1], 10) : 1;
+      for (let i = 0; i < numOfMeetings; i++) {
+        if (!rppData.durasiPertemuan[i]) {
+            isValid = false;
+            errorMessage = 'Durasi per pertemuan belum lengkap. Harap isi durasi untuk setiap pertemuan.';
+            break;
+        }
       }
     }
     if (isValid && (!rppData.jumlahPertemuan || rppData.jumlahPertemuan <= 0)) {
@@ -302,7 +326,7 @@ Untuk setiap materi pokok, buatkan 3 Tujuan Pembelajaran (TP) sesuai level kogni
       setRppData(prev => ({ ...prev, tujuanPembelajaran: aiResult.materi || [] }));
       
       // Log generate activity
-      await logActivity(currentUser.id, 'generate', `Generate RPP: ${rppData.mapel} - Kelas ${rppData.kelasSemester}`);
+      await logActivity(currentUser.id, 'generate', `Generate RPM: ${rppData.mapel} - Kelas ${rppData.kelasSemester}`);
       
       setShowOutput(true);
     } catch (error: any) {
@@ -364,6 +388,7 @@ Untuk setiap materi pokok, buatkan 3 Tujuan Pembelajaran (TP) sesuai level kogni
       currentUser.nip = editProfileData.nip;
       currentUser.namaSekolah = editProfileData.namaSekolah;
       currentUser.namaKepsek = editProfileData.namaKepsek;
+      currentUser.nipKepsek = editProfileData.nipKepsek;
       currentUser.noHp = editProfileData.noHp;
       currentUser.mapel = editProfileData.mapel;
       currentUser.profile_picture = editProfileData.profile_picture;
@@ -377,7 +402,7 @@ Untuk setiap materi pokok, buatkan 3 Tujuan Pembelajaran (TP) sesuai level kogni
       
     } catch (err) {
       console.error(err);
-      setProfileMsg('Gagal memperbarui profil.');
+      setProfileMsg('Gagal memperbarui profil: ' + (err as Error).message);
     } finally {
       setIsSavingProfile(false);
     }
@@ -518,6 +543,10 @@ Untuk setiap materi pokok, buatkan 3 Tujuan Pembelajaran (TP) sesuai level kogni
                     <label className="block text-sm font-medium text-gray-700 mb-1">Nama Kepala Sekolah</label>
                     <input type="text" value={editProfileData.namaKepsek} onChange={e => setEditProfileData(prev => ({...prev, namaKepsek: e.target.value}))} className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500" />
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">NIP Kepala Sekolah</label>
+                    <input type="text" value={editProfileData.nipKepsek || ''} onChange={e => setEditProfileData(prev => ({...prev, nipKepsek: e.target.value}))} className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500" />
+                  </div>
                   <div className="md:col-span-2 relative" ref={mapelDropdownRef}>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Mata Pelajaran</label>
                     <div 
@@ -584,6 +613,10 @@ Untuk setiap materi pokok, buatkan 3 Tujuan Pembelajaran (TP) sesuai level kogni
                   <div>
                     <p className="text-gray-500 mb-0.5 font-medium">Kepala Sekolah</p>
                     <p className="font-semibold text-gray-800">{currentUser.namaKepsek || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 mb-0.5 font-medium">NIP Kepala Sekolah</p>
+                    <p className="font-semibold text-gray-800">{currentUser.nipKepsek || '-'}</p>
                   </div>
                   <div className="sm:col-span-2">
                     <p className="text-gray-500 mb-0.5 font-medium">Mata Pelajaran</p>
@@ -657,7 +690,7 @@ Untuk setiap materi pokok, buatkan 3 Tujuan Pembelajaran (TP) sesuai level kogni
                           {item.activity_type === 'generate' ? <History className="w-5 h-5" /> : <UserIcon className="w-5 h-5" />}
                         </div>
                         <span className={`font-semibold text-lg ${item.activity_type === 'generate' ? 'text-purple-800' : 'text-blue-800'}`}>
-                          {item.activity_type === 'generate' ? 'Generate Dokumen RPP' : 'Login'}
+                          {item.activity_type === 'generate' ? 'Generate Dokumen RPM' : 'Login'}
                         </span>
                       </div>
                       <span className="text-sm font-medium text-gray-600 bg-white border border-gray-200 px-3 py-1 rounded shadow-sm">
@@ -942,11 +975,11 @@ Untuk setiap materi pokok, buatkan 3 Tujuan Pembelajaran (TP) sesuai level kogni
                   </li>
                   <li className="flex gap-3">
                     <span className="shrink-0 w-6 h-6 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-sm">!</span>
-                    <span className="font-medium text-amber-900 bg-amber-50 p-2 rounded w-full"><strong>TIPS PENTING:</strong> Kunci hasil RPP yang bagus terletak pada kelengkapan isian <em>Profil Karakteristik & Minat Siswa</em>. Semakin spesifik kondisi siswa Anda (misal: "Siswa kurang minat baca, suka visual", dll), semakin cerdas AI membuati solusinya di Modul!</span>
+                    <span className="font-medium text-amber-900 bg-amber-50 p-2 rounded w-full"><strong>TIPS PENTING:</strong> Kunci hasil RPM yang bagus terletak pada kelengkapan isian <em>Profil Karakteristik & Minat Siswa</em>. Semakin spesifik kondisi siswa Anda (misal: "Siswa kurang minat baca, suka visual", dll), semakin cerdas AI membuati solusinya di Modul!</span>
                   </li>
                   <li className="flex gap-3">
                     <span className="shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm">3</span>
-                    <span className="font-medium">Klik tombol <strong>"Generate RPP AI"</strong> di bawah form.</span>
+                    <span className="font-medium">Klik tombol <strong>"Generate RPM AI"</strong> di bawah form.</span>
                   </li>
                   <li className="flex gap-3">
                     <span className="shrink-0 w-6 h-6 rounded-full bg-green-100 text-green-700 flex items-center justify-center font-bold text-sm">4</span>
@@ -962,14 +995,14 @@ Untuk setiap materi pokok, buatkan 3 Tujuan Pembelajaran (TP) sesuai level kogni
                     <div className="p-3 bg-purple-100 text-purple-600 rounded-lg shrink-0"><History className="w-6 h-6" /></div>
                     <div>
                       <h4 className="font-bold text-slate-800 text-lg mb-1">Riwayat Aktivitas</h4>
-                      <p className="text-sm text-gray-600 font-medium">Fitur yang akan merekam aktivitas keseharian Anda seperti jejak kapan login terakhir, mengubah password, maupun history meng-generate RPP.</p>
+                      <p className="text-sm text-gray-600 font-medium">Fitur yang akan merekam aktivitas keseharian Anda seperti jejak kapan login terakhir, mengubah password, maupun history meng-generate RPM.</p>
                     </div>
                   </div>
                   <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex gap-4 items-start hover:border-green-300 transition-colors">
                     <div className="p-3 bg-green-100 text-green-600 rounded-lg shrink-0"><FileText className="w-6 h-6" /></div>
                     <div>
                       <h4 className="font-bold text-slate-800 text-lg mb-1">Dokumen Anda</h4>
-                      <p className="text-sm text-gray-600 font-medium">Meyimpan seluruh Rencana Pembelajaran Mendalam dan RPP yang pernah berhasil Anda ciptakan dengan AI secara permanen. Anda dapat kembali sewaktu-waktu dan Mengunduh ulangnya.</p>
+                      <p className="text-sm text-gray-600 font-medium">Meyimpan seluruh Rencana Pembelajaran Mendalam (RPM) yang pernah berhasil Anda ciptakan dengan AI secara permanen. Anda dapat kembali sewaktu-waktu dan Mengunduh ulangnya.</p>
                     </div>
                   </div>
                   <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex gap-4 items-start hover:border-cyan-300 transition-colors">
@@ -1065,6 +1098,7 @@ Untuk setiap materi pokok, buatkan 3 Tujuan Pembelajaran (TP) sesuai level kogni
                   rppData={rppData} 
                   setRppData={setRppData} 
                   validationError={validationError}
+                  showValidationMarks={showValidationMarks}
                   onGenerateTP={handleGenerateTP}
                   appConfig={appConfig}
                   userMapel={currentUser.mapel}

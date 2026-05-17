@@ -372,18 +372,13 @@ Untuk setiap materi pokok, buatkan 3 Tujuan Pembelajaran (TP) sesuai level kogni
     setIsSavingProfile(true);
     setProfileMsg('');
     try {
-      // Import the updateUserProfile instead of store.ts directly. Actually it is imported.
       const { updateUserProfile } = await import('../lib/store');
       await updateUserProfile(currentUser.id, editProfileData);
       
-      // Update the local current user context object if possible (or reload).
-      // Since it's passed as prop, we might need a hack or just inform user to re-login to see all changes properly, 
-      // but we can update the local edit state.
       setProfileMsg('Profil berhasil diperbarui!');
       setIsEditingProfile(false);
       setTimeout(() => setProfileMsg(''), 3000);
       
-      // Just temporarily mutating currentUser for local UI feedback
       currentUser.username = editProfileData.username;
       currentUser.nip = editProfileData.nip;
       currentUser.namaSekolah = editProfileData.namaSekolah;
@@ -399,6 +394,16 @@ Untuk setiap materi pokok, buatkan 3 Tujuan Pembelajaran (TP) sesuai level kogni
       currentUser.kop_kontak = editProfileData.kop_kontak;
       currentUser.kop_website = editProfileData.kop_website;
       currentUser.kop_sekolah_image = editProfileData.kop_sekolah_image;
+      
+      setRppData(prev => ({
+        ...prev,
+        namaSekolah: editProfileData.namaSekolah || prev.namaSekolah,
+        namaGuru: editProfileData.username || prev.namaGuru,
+        nipGuru: editProfileData.nip || prev.nipGuru,
+        namaKepsek: editProfileData.namaKepsek || prev.namaKepsek,
+        nipKepsek: editProfileData.nipKepsek || prev.nipKepsek,
+        mapel: (editProfileData.mapel && editProfileData.mapel.length > 0) ? editProfileData.mapel.join(', ') : prev.mapel,
+      }));
       
     } catch (err) {
       console.error(err);
@@ -475,6 +480,7 @@ Untuk setiap materi pokok, buatkan 3 Tujuan Pembelajaran (TP) sesuai level kogni
                       nip: currentUser.nip || '',
                       namaSekolah: currentUser.namaSekolah || '',
                       namaKepsek: currentUser.namaKepsek || '',
+                      nipKepsek: currentUser.nipKepsek || '',
                       noHp: currentUser.noHp || '',
                       mapel: currentUser.mapel || [],
                       profile_picture: currentUser.profile_picture || '',
@@ -487,6 +493,23 @@ Untuk setiap materi pokok, buatkan 3 Tujuan Pembelajaran (TP) sesuai level kogni
                       kop_sekolah_image: currentUser.kop_sekolah_image || ''
                     });
                   } else {
+                    setEditProfileData({
+                      username: currentUser.username || '',
+                      nip: currentUser.nip || '',
+                      namaSekolah: currentUser.namaSekolah || '',
+                      namaKepsek: currentUser.namaKepsek || '',
+                      nipKepsek: currentUser.nipKepsek || '',
+                      noHp: currentUser.noHp || '',
+                      mapel: currentUser.mapel || [],
+                      profile_picture: currentUser.profile_picture || '',
+                      kop_instansi: currentUser.kop_instansi || '',
+                      kop_dinas: currentUser.kop_dinas || '',
+                      kop_nama_sekolah: currentUser.kop_nama_sekolah || '',
+                      kop_alamat: currentUser.kop_alamat || '',
+                      kop_kontak: currentUser.kop_kontak || '',
+                      kop_website: currentUser.kop_website || '',
+                      kop_sekolah_image: currentUser.kop_sekolah_image || ''
+                    });
                     setIsEditingProfile(true);
                   }
                 }}

@@ -495,6 +495,9 @@ export default function OutputSection({ rppData, setRppData, apiKeys, onBack, us
                   <button onClick={() => handleDownloadWord('rpp-content-to-export', 'RPM_Garda_Spendus')} disabled={isEditing} className="flex items-center px-4 py-2 rounded-lg font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                     <Download className="w-4 h-4 mr-2" /> Download Word
                   </button>
+                  <button onClick={onBack} disabled={isEditing} className="flex items-center px-4 py-2 rounded-lg font-semibold text-white bg-purple-600 hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    <ArrowLeft className="w-4 h-4 mr-2" /> Buat RPM Baru
+                  </button>
                 </div>
               </div>
               <div 

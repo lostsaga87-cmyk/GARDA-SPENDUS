@@ -18,7 +18,25 @@ export default function FormSection({ rppData, setRppData, validationError, onGe
   const b = (field: keyof typeof rppData) => `${showValidationMarks && (!rppData[field] || (Array.isArray(rppData[field]) && (rppData[field] as any[]).length === 0)) ? "border-red-400 bg-red-50" : "border-gray-300"}`;
   const E = ({field, msg}: {field: keyof typeof rppData, msg?: string}) => ((showValidationMarks && (!rppData[field] || (Array.isArray(rppData[field]) && (rppData[field] as any[]).length === 0))) ? <span className="text-red-500 text-xs mt-1 block font-medium">{msg || "Wajib diisi"}</span> : null) as any;
   const handleChange = (field: keyof RppData, value: any) => {
-    setRppData(prev => ({ ...prev, [field]: value }));
+    setRppData(prev => {
+      const updates: any = { [field]: value };
+      if (field === 'namaSekolah' && typeof value === 'string') {
+        const s = value.toUpperCase();
+        let guessedJenjang = '';
+        if (s.includes('SD') || s.includes('MI')) guessedJenjang = 'SD';
+        else if (s.includes('SMP') || s.includes('MTS')) guessedJenjang = 'SMP';
+        else if (s.includes('SMA') || s.includes('SMK') || s.includes('MA ') || s.includes('MAK')) guessedJenjang = 'SMA';
+        else if (s.includes('PAUD')) guessedJenjang = 'PAUD';
+        else if (s.includes('TK')) guessedJenjang = 'TK';
+        
+        if (guessedJenjang && guessedJenjang !== prev.jenjang) {
+          updates.jenjang = guessedJenjang;
+          updates.kelasSemester = '';
+          updates.fase = '';
+        }
+      }
+      return { ...prev, ...updates };
+    });
   };
 
   const handleCheckbox = (field: 'profilLulusan' | 'sumberBelajar', value: string) => {

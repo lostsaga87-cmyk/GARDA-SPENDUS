@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Users, Key, BookOpen, LayoutDashboard, LogOut, Check, X, Save, ShieldCheck, Activity, RefreshCw, Menu, Bug, ArrowUpDown, ChevronUp, ChevronDown, Trash2, UserCheck } from 'lucide-react';
+import { Settings, Users, Key, BookOpen, LayoutDashboard, LogOut, Check, X, Save, ShieldCheck, Activity, RefreshCw, Menu, Bug, ArrowUpDown, ChevronUp, ChevronDown, Trash2, UserCheck, Plus } from 'lucide-react';
 import { AppConfig, User, getAppConfig, updateAppConfig, getUsers, updateUserStatus, deleteUser, getActivityStats, getActivities, updateUserProfile, createDummyUser, injectFakeActivity } from '../lib/store';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { format, parseISO, subDays, differenceInDays, addDays, isBefore, isAfter, startOfDay } from 'date-fns';
@@ -13,6 +13,7 @@ export default function AdminDashboard({ currentUser, onLogout }: { currentUser:
   const [usersList, setUsersList] = useState<User[]>([]);
   const [activitiesList, setActivitiesList] = useState<any[]>([]);
   const [saveMessage, setSaveMessage] = useState('');
+  const [newApiKey, setNewApiKey] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -98,13 +99,7 @@ export default function AdminDashboard({ currentUser, onLogout }: { currentUser:
         getActivities()
       ]);
       if (configData) {
-         // Pastikan ada config baru yang slotnya diperbanyak, API keys
-         // Di DB sudah TEXT array by supabase, kita asumsikan panjang bisa ditambah
-         const currentKeys = configData.apiKeys || [];
-         while (currentKeys.length < 20) { // misal asalnya 10, ditambah 10an jadi lebih banyak
-           currentKeys.push('');
-         }
-         setConfig({...configData, apiKeys: currentKeys});
+        setConfig(configData);
       }
       setUsersList(usersData);
       setActivitiesList(activityList);
@@ -302,6 +297,63 @@ export default function AdminDashboard({ currentUser, onLogout }: { currentUser:
           text: 'Gagal menyimpan konfigurasi.',
         });
       }
+    }
+  };
+
+  const handleAddApiKey = async () => {
+    if (!newApiKey.trim() || !config) return;
+    try {
+      const updatedKeys = [...config.apiKeys, newApiKey.trim()];
+      const newConfig = { ...config, apiKeys: updatedKeys };
+      await updateAppConfig(newConfig);
+      setConfig(newConfig);
+      setNewApiKey('');
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'success',
+        title: 'API Key berhasil ditambahkan!',
+        showConfirmButton: false,
+        timer: 2000
+      });
+    } catch (err) {
+      console.error('Error adding API key:', err);
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'error',
+        title: 'Gagal menambahkan API Key.',
+        showConfirmButton: false,
+        timer: 2000
+      });
+    }
+  };
+
+  const handleRemoveApiKey = async (indexToRemove: number) => {
+    if (!config) return;
+    try {
+      const updatedKeys = config.apiKeys.filter((_, idx) => idx !== indexToRemove);
+      const newConfig = { ...config, apiKeys: updatedKeys };
+      await updateAppConfig(newConfig);
+      setConfig(newConfig);
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'success',
+        title: 'API Key berhasil dihapus!',
+        showConfirmButton: false,
+        timer: 2000
+      });
+    } catch (err) {
+      console.error('Error removing API key:', err);
+       Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'error',
+        title: 'Gagal menghapus API Key.',
+        showConfirmButton: false,
+        timer: 2000
+      });
     }
   };
 
@@ -673,15 +725,16 @@ export default function AdminDashboard({ currentUser, onLogout }: { currentUser:
               <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2"><Key className="w-7 h-7 text-blue-600" /> Konfigurasi API Gemini</h2>
               <div className="space-y-6">
                 <div>
-                  <p className="text-sm text-gray-600 mb-4">Anda dapat memasukkan hingga 20 API Key. Jika API Key pertama kehabisan kuota atau bermasalah, sistem akan otomatis menggunakan API Key berikutnya.</p>
-                  <div className="space-y-3">
+                  <p className="text-sm text-gray-600 mb-4">Anda dapat memasukkan API Key tak terbatas. Jika API Key pertama kehabisan kuota atau bermasalah, sistem akan otomatis menggunakan API Key berikutnya.</p>
+                  
+                  <div className="space-y-3 mb-6">
                     {config.apiKeys.map((key, index) => (
                       <div key={index} className="flex items-center gap-3">
                         <span className="w-8 text-center font-semibold text-gray-500">{index + 1}.</span>
                         <input 
                           type="password" 
                           placeholder={`API Key ${index + 1}`} 
-                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" 
+                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-gray-50 bg-opacity-50" 
                           value={key} 
                           onChange={e => {
                             const newKeys = [...config.apiKeys];
@@ -689,13 +742,53 @@ export default function AdminDashboard({ currentUser, onLogout }: { currentUser:
                             setConfig({...config, apiKeys: newKeys});
                           }} 
                         />
+                        <button 
+                          onClick={() => handleRemoveApiKey(index)}
+                          className="p-3 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Hapus API Key"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
                       </div>
                     ))}
+                    
+                    {config.apiKeys.length === 0 && (
+                       <div className="p-4 text-center text-gray-500 border border-dashed rounded-lg">Belum ada API Key</div>
+                    )}
+                  </div>
+
+                  <div className="p-4 border border-blue-100 bg-blue-50/30 rounded-xl space-y-3">
+                    <label className="block text-sm font-semibold text-gray-700">Tambah API Key Baru</label>
+                    <div className="flex gap-3">
+                      <input 
+                        type="text" 
+                        placeholder="Masukkan API Key baru..." 
+                        className="flex-1 p-3 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white" 
+                        value={newApiKey}
+                        onChange={e => setNewApiKey(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddApiKey();
+                          }
+                        }}
+                      />
+                      <button 
+                        onClick={handleAddApiKey}
+                        disabled={!newApiKey.trim()}
+                        className="flex items-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <Plus className="w-5 h-5 mr-2" /> Tambah
+                      </button>
+                    </div>
                   </div>
                 </div>
-                <button onClick={handleSaveConfig} className="flex items-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors">
-                  <Save className="w-5 h-5 mr-2" /> Simpan API Key
-                </button>
+                
+                <div className="pt-4 border-t border-gray-100 flex justify-end">
+                  <button onClick={handleSaveConfig} className="flex items-center px-6 py-3 bg-gray-800 text-white font-semibold rounded-lg hover:bg-gray-900 transition-colors">
+                    <Save className="w-5 h-5 mr-2" /> Simpan Perubahan API
+                  </button>
+                </div>
               </div>
             </div>
           )}

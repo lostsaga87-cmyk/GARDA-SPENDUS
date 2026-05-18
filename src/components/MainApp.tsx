@@ -15,8 +15,8 @@ import Swal from 'sweetalert2';
 
 const SUBJECTS = [
   'Bahasa Indonesia', 'Bahasa Inggris', 'Bahasa Daerah', 'Matematika', 
-  'IPA', 'IPS', 'Informatika', 'PAI', 'BTQ', 'Pendidikan Pancasila', 
-  'Seni Budaya/Seni Rupa', 'Prakarya', 'PJOK'
+  'IPA', 'IPS', 'IPAS', 'Biologi', 'Fisika', 'Kimia', 'Ekonomi', 'Sosiologi', 'Geografi', 'Informatika', 'TKJ', 'RPL', 'DKV', 'PAI', 'BTQ', 'Pendidikan Pancasila', 
+  'Seni Budaya/Seni Rupa', 'Prakarya', 'Tata Boga', 'PJOK'
 ];
 
 export default function MainApp({ onLogout, appConfig, currentUser }: { onLogout: () => void, appConfig: AppConfig, currentUser: User }) {
@@ -193,8 +193,19 @@ export default function MainApp({ onLogout, appConfig, currentUser }: { onLogout
     }
   }, [currentView, currentUser.id]);
 
+  const guessJenjangFn = (sekolah: string): string => {
+    if (!sekolah) return 'SMP';
+    const s = sekolah.toUpperCase();
+    if (s.includes('SD') || s.includes('MI')) return 'SD';
+    if (s.includes('SMP') || s.includes('MTS')) return 'SMP';
+    if (s.includes('SMA') || s.includes('SMK') || s.includes('MA ') || s.includes('MAK')) return 'SMA';
+    if (s.includes('PAUD')) return 'PAUD';
+    if (s.includes('TK')) return 'TK';
+    return 'SMP';
+  };
+
   const [rppData, setRppData] = useState<RppData>({
-    namaSekolah: currentUser.namaSekolah || '', jenjang: 'SMP', mapel: currentUser.mapel?.join(', ') || '', tahunPelajaran: '2025/2026', kelasSemester: '', fase: '',
+    namaSekolah: currentUser.namaSekolah || '', jenjang: guessJenjangFn(currentUser.namaSekolah || ''), mapel: currentUser.mapel?.join(', ') || '', tahunPelajaran: '2025/2026', kelasSemester: '', fase: '',
     jumlahPertemuan: 1, durasiPertemuan: ['1 JP x 40 Menit'], alokasiWaktu: '1 Pertemuan',
     lingkungan: '', namaGuru: currentUser.username || '', nipGuru: currentUser.nip || '', namaKepsek: currentUser.namaKepsek || '', nipKepsek: currentUser.nipKepsek || '', kota: 'Pasuruan',
     kktpTercapaiMin: 80,

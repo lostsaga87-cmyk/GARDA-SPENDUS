@@ -5,8 +5,8 @@ import Swal from 'sweetalert2';
 
 const SUBJECTS = [
   'Bahasa Indonesia', 'Bahasa Inggris', 'Bahasa Daerah', 'Matematika', 
-  'IPA', 'IPS', 'Informatika', 'PAI', 'BTQ', 'Pendidikan Pancasila', 
-  'Seni Budaya/Seni Rupa', 'Prakarya', 'PJOK'
+  'IPA', 'IPS', 'IPAS', 'Biologi', 'Fisika', 'Kimia', 'Ekonomi', 'Sosiologi', 'Geografi', 'Informatika', 'TKJ', 'RPL', 'DKV', 'PAI', 'BTQ', 'Pendidikan Pancasila', 
+  'Seni Budaya/Seni Rupa', 'Prakarya', 'Tata Boga', 'PJOK'
 ];
 
 export default function RegisterScreen({ onRegister, onCancel, appConfig }: any) {

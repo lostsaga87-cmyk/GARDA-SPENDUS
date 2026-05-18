@@ -1,3 +1,5 @@
+let lastWorkingKeyIndex = 0;
+
 export async function makeApiCall(prompt: string, apiKeys: string[], schema: any = null) {
     const validKeys = apiKeys.filter(k => k && k.trim() !== '');
     if (validKeys.length === 0) {
@@ -11,7 +13,8 @@ export async function makeApiCall(prompt: string, apiKeys: string[], schema: any
 
     let lastError: Error | null = null;
 
-    for (let keyIndex = 0; keyIndex < validKeys.length; keyIndex++) {
+    for (let i = 0; i < validKeys.length; i++) {
+        const keyIndex = (lastWorkingKeyIndex + i) % validKeys.length;
         const apiKey = validKeys[keyIndex];
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
         
@@ -28,6 +31,7 @@ export async function makeApiCall(prompt: string, apiKeys: string[], schema: any
                 });
 
                 if (response.ok) {
+                    lastWorkingKeyIndex = keyIndex;
                     const result = await response.json();
                     if (!result.candidates || !result.candidates[0].content || !result.candidates[0].content.parts || !result.candidates[0].content.parts[0].text) {
                         if (result.promptFeedback && result.promptFeedback.blockReason) {
@@ -83,5 +87,5 @@ export async function makeApiCall(prompt: string, apiKeys: string[], schema: any
         }
     }
     
-    throw new Error(`Semua API Key gagal. Kesalahan terakhir: ${lastError?.message || 'Tidak diketahui'}`);
+    throw new Error(`Semua ${validKeys.length} API Key gagal. Kesalahan terakhir: ${lastError?.message || 'Tidak diketahui'}`);
 }

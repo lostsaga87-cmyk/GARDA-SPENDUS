@@ -32,7 +32,7 @@ export interface AppConfig {
 export const DEFAULT_CONFIG: AppConfig = {
   appName: "GARDA SPENDUS",
   appLogo: "https://lh3.googleusercontent.com/d/1ltGZoLoeamrE79q-Uzwx3KUg6A987qo2",
-  apiKeys: Array(20).fill(""),
+  apiKeys: [],
 };
 
 // Fungsi ini dipertahankan untuk kompatibilitas jika ada yang memanggilnya,
@@ -46,17 +46,17 @@ export async function getAppConfig(): Promise<AppConfig | null> {
     return null;
   }
   
-  let parsedApiKeys: string[] = Array(20).fill("");
+  let parsedApiKeys: string[] = [];
   if (data.api_key) {
     try {
       const parsed = JSON.parse(data.api_key);
       if (Array.isArray(parsed)) {
-        parsedApiKeys = [...parsed, ...Array(20).fill("")].slice(0, 20);
+        parsedApiKeys = parsed;
       } else {
-        parsedApiKeys[0] = data.api_key;
+        parsedApiKeys = [data.api_key];
       }
     } catch (e) {
-      parsedApiKeys[0] = data.api_key;
+      parsedApiKeys = [data.api_key];
     }
   }
 

@@ -20,6 +20,7 @@ export interface User {
   kop_kontak?: string;
   kop_website?: string;
   kop_sekolah_image?: string;
+  created_at?: string;
 }
 
 export interface AppConfig {
@@ -161,7 +162,8 @@ export async function getUsers(): Promise<User[]> {
       kop_alamat: d.kop_alamat,
       kop_kontak: d.kop_kontak,
       kop_website: d.kop_website,
-      kop_sekolah_image: d.kop_sekolah_image
+      kop_sekolah_image: d.kop_sekolah_image,
+      created_at: d.created_at
     };
   });
 }

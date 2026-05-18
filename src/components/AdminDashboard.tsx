@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Users, Key, BookOpen, LayoutDashboard, LogOut, Check, X, Save, ShieldCheck, Activity, RefreshCw, Menu, Bug, ArrowUpDown, ChevronUp, ChevronDown, Trash2 } from 'lucide-react';
+import { Settings, Users, Key, BookOpen, LayoutDashboard, LogOut, Check, X, Save, ShieldCheck, Activity, RefreshCw, Menu, Bug, ArrowUpDown, ChevronUp, ChevronDown, Trash2, UserCheck } from 'lucide-react';
 import { AppConfig, User, getAppConfig, updateAppConfig, getUsers, updateUserStatus, deleteUser, getActivityStats, getActivities, updateUserProfile, createDummyUser, injectFakeActivity } from '../lib/store';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { format, parseISO, subDays, differenceInDays, addDays, isBefore, isAfter, startOfDay } from 'date-fns';
@@ -51,13 +51,6 @@ export default function AdminDashboard({ currentUser, onLogout }: { currentUser:
           return sortConfig.direction === 'asc' ? 1 : -1;
         }
         return 0;
-      });
-    } else {
-      // By default, sort by nama (username)
-      sortableItems.sort((a, b) => {
-        const nameA = (a.username || '').toLowerCase();
-        const nameB = (b.username || '').toLowerCase();
-        return nameA.localeCompare(nameB);
       });
     }
     return sortableItems;
@@ -430,6 +423,23 @@ export default function AdminDashboard({ currentUser, onLogout }: { currentUser:
             {!isSidebarMinimized && <span className="font-medium">Pengguna</span>}
           </button>
           <button 
+            onClick={() => setActiveTab('pending_users')} 
+            className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all ${isSidebarMinimized ? 'justify-center' : ''} ${activeTab === 'pending_users' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:bg-slate-800'}`}
+            title="Validasi Pengguna"
+          >
+            <UserCheck className="w-5 h-5 shrink-0" /> 
+            {!isSidebarMinimized && (
+              <div className="flex-1 flex justify-between items-center">
+                <span className="font-medium">Validasi Pengguna</span>
+                {usersList.filter(u => u.status === 'pending').length > 0 && (
+                  <span className="bg-amber-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                    {usersList.filter(u => u.status === 'pending').length}
+                  </span>
+                )}
+              </div>
+            )}
+          </button>
+          <button 
             onClick={() => setActiveTab('activities')} 
             className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all ${isSidebarMinimized ? 'justify-center' : ''} ${activeTab === 'activities' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:bg-slate-800'}`}
             title="Riwayat"
@@ -480,6 +490,7 @@ export default function AdminDashboard({ currentUser, onLogout }: { currentUser:
                 {activeTab === 'general' && 'Pengaturan Aplikasi'}
                 {activeTab === 'api' && 'Konfigurasi AI'}
                 {activeTab === 'users' && 'Manajemen Pengguna'}
+                {activeTab === 'pending_users' && 'Validasi Pengguna'}
               </h1>
               <button 
                 onClick={() => fetchData(true)} 
@@ -712,7 +723,7 @@ export default function AdminDashboard({ currentUser, onLogout }: { currentUser:
                     </tr>
                   </thead>
                   <tbody>
-                    {sortedUsersList.map(user => (
+                    {sortedUsersList.filter(u => u.status !== 'pending').map(user => (
                       <tr key={user.id} className="border-b border-gray-100 hover:bg-gray-50">
                         <td className="p-3">
                           <div className="font-medium text-gray-800">{user.username}</div>
@@ -722,8 +733,7 @@ export default function AdminDashboard({ currentUser, onLogout }: { currentUser:
                         <td className="p-3 text-gray-600">{user.nip || '-'}</td>
                         <td className="p-3">
                           <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                            user.status === 'approved' ? 'bg-green-100 text-green-700' : 
-                            user.status === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'
+                            user.status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                           }`}>
                             {user.status.toUpperCase()}
                           </span>
@@ -731,16 +741,6 @@ export default function AdminDashboard({ currentUser, onLogout }: { currentUser:
                         <td className="p-3">
                           {user.role !== 'admin' && (
                             <div className="flex justify-center gap-2">
-                              {user.status === 'pending' && (
-                                <>
-                                  <button onClick={() => handleUserStatus(user.id, 'approved')} className="p-1.5 bg-green-100 text-green-600 rounded hover:bg-green-200" title="Setujui">
-                                    <Check className="w-4 h-4" />
-                                  </button>
-                                  <button onClick={() => handleUserStatus(user.id, 'rejected')} className="p-1.5 bg-red-100 text-red-600 rounded hover:bg-red-200" title="Tolak">
-                                    <X className="w-4 h-4" />
-                                  </button>
-                                </>
-                              )}
                               <button onClick={() => handleDeleteUser(user)} className="p-1.5 bg-rose-100 text-rose-600 rounded hover:bg-rose-200" title="Hapus Akun">
                                 <Trash2 className="w-4 h-4" />
                               </button>
@@ -749,6 +749,63 @@ export default function AdminDashboard({ currentUser, onLogout }: { currentUser:
                         </td>
                       </tr>
                     ))}
+                    {sortedUsersList.filter(u => u.status !== 'pending').length === 0 && (
+                      <tr><td colSpan={5} className="p-4 text-center text-gray-500">Tidak ada pengguna.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'pending_users' && (
+            <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 animate-in fade-in slide-in-from-right-4 duration-500">
+              <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2"><UserCheck className="w-7 h-7 text-amber-500" /> Validasi Pengguna Baru</h2>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      <th className="p-3 text-left font-semibold text-gray-600 cursor-pointer select-none hover:bg-gray-100 transition-colors" onClick={() => requestSort('username')}>
+                        <div className="flex items-center gap-1">Nama Pengguna {getSortIcon('username')}</div>
+                      </th>
+                      <th className="p-3 text-left font-semibold text-gray-600 cursor-pointer select-none hover:bg-gray-100 transition-colors" onClick={() => requestSort('namaSekolah')}>
+                        <div className="flex items-center gap-1">Sekolah {getSortIcon('namaSekolah')}</div>
+                      </th>
+                      <th className="p-3 text-left font-semibold text-gray-600 cursor-pointer select-none hover:bg-gray-100 transition-colors" onClick={() => requestSort('nip')}>
+                        <div className="flex items-center gap-1">NIP {getSortIcon('nip')}</div>
+                      </th>
+                      <th className="p-3 text-left font-semibold text-gray-600 cursor-pointer select-none hover:bg-gray-100 transition-colors" onClick={() => requestSort('created_at')}>
+                        <div className="flex items-center gap-1">Waktu Daftar {getSortIcon('created_at')}</div>
+                      </th>
+                      <th className="p-3 text-center font-semibold text-gray-600">Aksi Validasi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedUsersList.filter(u => u.status === 'pending').map(user => (
+                      <tr key={user.id} className="border-b border-gray-100 hover:bg-amber-50">
+                        <td className="p-3">
+                          <div className="font-medium text-gray-800">{user.username}</div>
+                        </td>
+                        <td className="p-3 text-gray-600">{user.namaSekolah || '-'}</td>
+                        <td className="p-3 text-gray-600">{user.nip || '-'}</td>
+                        <td className="p-3 text-gray-600 text-sm">
+                          {user.created_at ? format(parseISO(user.created_at), 'dd MMM yyyy, HH:mm', { locale: id }) : '-'}
+                        </td>
+                        <td className="p-3">
+                          <div className="flex justify-center gap-2">
+                            <button onClick={() => handleUserStatus(user.id, 'approved')} className="px-3 py-1.5 bg-green-100 text-green-700 font-medium rounded hover:bg-green-200 flex items-center gap-1 text-sm" title="Setujui">
+                              <Check className="w-4 h-4" /> Setujui
+                            </button>
+                            <button onClick={() => handleUserStatus(user.id, 'rejected')} className="px-3 py-1.5 bg-red-100 text-red-700 font-medium rounded hover:bg-red-200 flex items-center gap-1 text-sm" title="Tolak">
+                              <X className="w-4 h-4" /> Tolak
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {sortedUsersList.filter(u => u.status === 'pending').length === 0 && (
+                      <tr><td colSpan={5} className="p-8 text-center text-gray-500">Tidak ada pengguna baru yang menunggu validasi.</td></tr>
+                    )}
                   </tbody>
                 </table>
               </div>
